@@ -30,7 +30,6 @@ defmodule ServiceHubWeb.Router do
 
   # Enable Swoosh mailbox preview in development
   if Application.compile_env(:service_hub, :dev_routes) do
-
     scope "/dev" do
       pipe_through :browser
 
@@ -47,6 +46,18 @@ defmodule ServiceHubWeb.Router do
       on_mount: [{ServiceHubWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+      live "/providers", ProviderLive.Index, :index
+      live "/providers/new", ProviderLive.Form, :new
+      live "/providers/:id", ProviderLive.Show, :show
+      live "/providers/:id/edit", ProviderLive.Form, :edit
+      live "/provider_types", ProviderTypeLive.Index, :index
+      live "/provider_types/new", ProviderTypeLive.Form, :new
+      live "/provider_types/:id", ProviderTypeLive.Show, :show
+      live "/provider_types/:id/edit", ProviderTypeLive.Form, :edit
+      live "/auth_types", AuthTypeLive.Index, :index
+      live "/auth_types/new", AuthTypeLive.Form, :new
+      live "/auth_types/:id", AuthTypeLive.Show, :show
+      live "/auth_types/:id/edit", AuthTypeLive.Form, :edit
     end
 
     post "/users/update-password", UserSessionController, :update_password

@@ -28,7 +28,13 @@ The app should:
 
 - **Provider**  
   External code hosting instance (Gitea/GitHub/GitLab).  
-  Includes base URL, auth type, auth data.
+  Includes base URL, provider_type, auth_type, auth_data.
+
+- **ProviderType**  
+  Defines a provider kind (e.g., gitea, github) and its required_fields map used to render provider-specific inputs.
+
+- **AuthType**  
+  Defines an auth method (e.g., pat, oauth) and its required_fields map used to render auth-specific inputs.
 
 - **Service**  
   A repo hosted on a provider.  
@@ -98,11 +104,28 @@ Create schemas and migrations for:
 
 #### `providers`
 - id  
+- user_id  
 - name  
-- type (`"gitea"`, `"github"`, etc.)  
 - base_url  
-- auth_type (`"pat"`, `"oauth"`, `"app"`)  
-- auth_data (jsonb)  
+- provider_type_id (FK)  
+- auth_type_id (FK)  
+- auth_data (jsonb, defaults to `{}`)  
+- timestamps  
+
+#### `provider_types`
+- id  
+- user_id  
+- name  
+- key (unique per user)  
+- required_fields (jsonb, defaults to `{}`)  
+- timestamps  
+
+#### `auth_types`
+- id  
+- user_id  
+- name  
+- key (unique per user)  
+- required_fields (jsonb, defaults to `{}`)  
 - timestamps  
 
 #### `services`
@@ -172,6 +195,7 @@ Implement CRUD operations:
 #### Providers
 - create/update/delete
 - validation via `validate_provider_connection/1`
+- provider_type and auth_type chosen from DB (no free-text)
 - store results in audit logs
 
 #### Services
@@ -250,6 +274,7 @@ View structure:
 - Provider → details + validation status
 - Service → clients with quick version/health indicators
 - ServiceClient → fields + last version/health info
+- Provider form uses selects for provider/auth types and renders structured inputs from their `required_fields` maps instead of raw JSON fields.
 
 **No workflow UI yet.**
 
