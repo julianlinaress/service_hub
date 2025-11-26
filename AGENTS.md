@@ -59,7 +59,8 @@ Create the first adapter: `Provider.Gitea`.
 
 ### 2.4 Technology Baseline & Frontend Guidelines
 
-**Active constraint:** Do not write any project documentation yet unless specifically asked for or phoenix generated; focus on implementation only.
+**Active constraint:** Do not write any project documentation yet unless specifically asked for or Phoenix generated; focus on implementation only.
+**Testing note:** Keep generator-produced tests as-is; no additional tests needed right now.
 
 - Backend stack: Elixir `~> 1.15`, Phoenix `~> 1.8.2` with LiveView `~> 1.1` (many new stuff in this versions), Ecto + Postgres, HTTP via `Req` inside provider adapters, Bandit for HTTP serving, `Jason` for JSON, and `Swoosh` for email.
 - Frontend build: HEEx templates, Tailwind + CSS variables defined in `assets/css/app.css`, esbuild for assets, Heroicons for icons.
