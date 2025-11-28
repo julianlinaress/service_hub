@@ -32,6 +32,9 @@ defmodule ServiceHubWeb.ProviderLive.Index do
         <:col :let={{_id, provider}} label="Auth details">
           {format_auth_data(provider.auth_data)}
         </:col>
+        <:col :let={{_id, provider}} label="Validation">
+          {String.capitalize(provider.last_validation_status || "unvalidated")}
+        </:col>
         <:action :let={{_id, provider}}>
           <div class="sr-only">
             <.link navigate={~p"/providers/#{provider}"}>Show</.link>

@@ -48,6 +48,8 @@ defmodule ServiceHubWeb.Router do
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/providers", ProviderLive.Index, :index
       live "/providers/new", ProviderLive.Form, :new
+      live "/providers/:id/services/new", ProviderLive.Show, :new_service
+      live "/providers/:id/services/:service_id/edit", ProviderLive.Show, :edit_service
       live "/providers/:id", ProviderLive.Show, :show
       live "/providers/:id/edit", ProviderLive.Form, :edit
       live "/provider_types", ProviderTypeLive.Index, :index

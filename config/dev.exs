@@ -3,7 +3,7 @@ import Config
 # Configure your database
 config :service_hub, ServiceHub.Repo,
   username: "postgres",
-  password: "postgres",
+  password: "1nf0rm3",
   hostname: "localhost",
   database: "service_hub_dev",
   stacktrace: true,

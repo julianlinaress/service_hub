@@ -3,6 +3,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
 
   alias ServiceHub.Providers
   alias ServiceHub.Providers.AuthType
+  alias ServiceHub.Providers.AuthRegistry
 
   @impl true
   def render(assigns) do
@@ -14,15 +15,13 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
       </.header>
 
       <.form for={@form} id="auth_type-form" phx-change="validate" phx-submit="save">
-        <.input field={@form[:name]} type="text" label="Name" />
-        <.input field={@form[:key]} type="text" label="Key" />
-        <.input
-          field={@form[:required_fields]}
-          type="textarea"
-          label="Required fields (JSON map of field => %{label,type})"
-          value={required_fields_value(@form)}
-          phx-debounce="500"
-        />
+        <.input field={@form[:key]} type="select" label="Auth type" options={@auth_type_options} />
+        <div class="rounded border border-base-200 bg-base-200/30 p-3 text-sm">
+          <p class="font-semibold mb-2">Required fields</p>
+          <pre class="whitespace-pre-wrap text-xs">
+    {required_fields_value(@form)}
+          </pre>
+        </div>
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Auth type</.button>
           <.button navigate={return_path(@current_scope, @return_to, @auth_type)}>Cancel</.button>
@@ -36,6 +35,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
   def mount(params, _session, socket) do
     {:ok,
      socket
+     |> assign(:auth_type_options, AuthRegistry.list_options())
      |> assign(:return_to, return_to(params["return_to"]))
      |> apply_action(socket.assigns.live_action, params)}
   end
@@ -53,7 +53,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    auth_type = %AuthType{user_id: socket.assigns.current_scope.user.id}
+    auth_type = %AuthType{}
 
     socket
     |> assign(:page_title, "New Auth type")
@@ -114,12 +114,17 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
   defp return_path(_scope, "index", _auth_type), do: ~p"/auth_types"
   defp return_path(_scope, "show", auth_type), do: ~p"/auth_types/#{auth_type}"
 
-  defp required_fields_value(%{source: %{params: %{"required_fields" => value}}})
-       when is_binary(value),
-       do: value
+  defp required_fields_value(form) do
+    key =
+      case form do
+        %{source: %{params: %{"key" => key}}} when is_binary(key) -> key
+        %{source: %{data: %{key: key}}} when is_binary(key) -> key
+        _ -> nil
+      end
 
-  defp required_fields_value(%{source: %{data: %{required_fields: fields}}}) when is_map(fields),
-    do: Jason.encode!(fields)
-
-  defp required_fields_value(_), do: ""
+    case AuthRegistry.fetch(key) do
+      {:ok, %{required_fields: fields}} -> Jason.encode!(fields)
+      _ -> ""
+    end
+  end
 end

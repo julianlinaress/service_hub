@@ -10,6 +10,9 @@ defmodule ServiceHub.Providers.Provider do
     field :name, :string
     field :base_url, :string
     field :auth_data, :map, default: %{}
+    field :last_validation_status, :string, default: "unvalidated"
+    field :last_validated_at, :utc_datetime
+    field :last_validation_error, :string
     belongs_to :user, User
     belongs_to :provider_type, ProviderType
     belongs_to :auth_type, AuthType
@@ -23,7 +26,7 @@ defmodule ServiceHub.Providers.Provider do
     |> then(fn normalized_attrs ->
       provider
       |> cast(normalized_attrs, [:name, :base_url, :auth_data, :provider_type_id, :auth_type_id])
-      |> validate_required([:name, :base_url, :provider_type_id, :auth_type_id])
+      |> validate_required([:name, :base_url, :provider_type_id])
       |> assoc_constraint(:provider_type)
       |> assoc_constraint(:auth_type)
       |> put_change(:user_id, user_scope.user.id)

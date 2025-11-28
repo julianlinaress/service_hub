@@ -68,17 +68,19 @@ defmodule ServiceHubWeb.ProviderLive.Form do
 
   @impl true
   def mount(params, _session, socket) do
-    provider_types = Providers.list_provider_types(socket.assigns.current_scope)
-    auth_types = Providers.list_auth_types(socket.assigns.current_scope)
-
     {:ok,
      socket
+     |> assign(:provider_types, Providers.list_provider_types(socket.assigns.current_scope))
+     |> assign(:auth_types, Providers.list_auth_types(socket.assigns.current_scope))
      |> assign(:return_to, return_to(params["return_to"]))
-     |> assign(:provider_types, provider_types)
-     |> assign(:auth_types, auth_types)
      |> assign(:provider_field_defs, %{})
      |> assign(:auth_field_defs, %{})
      |> apply_action(socket.assigns.live_action, params)}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
   defp return_to("show"), do: "show"
@@ -94,7 +96,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    provider = %Provider{user_id: socket.assigns.current_scope.user.id}
+    provider = %Provider{}
 
     socket
     |> assign(:page_title, "New Provider")
@@ -195,8 +197,14 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   defp field_input_type(_), do: "text"
 
   defp field_value(form, key) do
-    params = form.params || %{}
-    auth_data = params["auth_data"] || params[:auth_data] || form.data.auth_data || %{}
-    Map.get(auth_data, key) || ""
+    auth_data =
+      case form do
+        %{params: %{"auth_data" => data}} when is_map(data) -> data
+        %{params: %{auth_data: data}} when is_map(data) -> data
+        %{data: %{auth_data: data}} when is_map(data) -> data
+        _ -> %{}
+      end
+
+    Map.get(auth_data, key) || Map.get(auth_data, to_string(key)) || ""
   end
 end

@@ -3,6 +3,7 @@ defmodule ServiceHub.Providers do
   alias ServiceHub.Repo
 
   alias ServiceHub.Accounts.Scope
+  alias ServiceHub.ProviderAdapters
   alias ServiceHub.Providers.{AuthType, Provider, ProviderType}
 
   def subscribe_providers(%Scope{} = scope) do
@@ -25,9 +26,15 @@ defmodule ServiceHub.Providers do
     |> Repo.all()
   end
 
+  def get_provider!(%Scope{} = scope, %Provider{} = provider) do
+    true = provider.user_id == scope.user.id
+
+    Repo.preload(provider, [:provider_type, :auth_type])
+  end
+
   def get_provider!(%Scope{} = scope, id) do
     Provider
-    |> where(id: ^id, user_id: ^scope.user.id)
+    |> where(id: ^parse_id(id), user_id: ^scope.user.id)
     |> preload([:provider_type, :auth_type])
     |> Repo.one!()
   end
@@ -72,6 +79,66 @@ defmodule ServiceHub.Providers do
     Provider.changeset(provider, attrs, scope)
   end
 
+  def validate_provider_connection(%Scope{} = scope, provider_or_id) do
+    provider = get_provider!(scope, provider_or_id)
+    now = DateTime.utc_now(:second)
+
+    status_update =
+      case ProviderAdapters.validate_connection(provider) do
+        :ok ->
+          %{
+            last_validation_status: "ok",
+            last_validation_error: nil,
+            last_validated_at: now
+          }
+
+        {:error, reason} ->
+          %{
+            last_validation_status: "error",
+            last_validation_error: format_validation_error(reason),
+            last_validated_at: now
+          }
+      end
+
+    with {:ok, provider} <-
+           provider
+           |> Ecto.Changeset.change(status_update)
+           |> Repo.update() do
+      broadcast_provider(scope, {:updated, provider})
+      {:ok, provider}
+    end
+  end
+
+  def create_provider_token(
+        %Scope{} = scope,
+        provider_or_id,
+        %{
+          "username" => username,
+          "password" => password
+        } = params
+      ) do
+    provider = get_provider!(scope, provider_or_id)
+
+    with {:ok, token} <- ProviderAdapters.create_token(provider, username, password, params),
+         {:ok, provider} <-
+           provider
+           |> Ecto.Changeset.change(auth_data: Map.put(provider.auth_data || %{}, "token", token))
+           |> Repo.update() do
+      broadcast_provider(scope, {:updated, provider})
+      {:ok, token}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp format_validation_error(:unauthorized), do: "Unauthorized"
+  defp format_validation_error(:not_found), do: "Provider not reachable"
+
+  defp format_validation_error({:unexpected_status, status}),
+    do: "Unexpected response (#{status})"
+
+  defp format_validation_error(reason), do: inspect(reason)
+
   def subscribe_provider_types(%Scope{} = scope) do
     key = scope.user.id
 
@@ -84,16 +151,15 @@ defmodule ServiceHub.Providers do
     Phoenix.PubSub.broadcast(ServiceHub.PubSub, "user:#{key}:provider_types", message)
   end
 
-  def list_provider_types(%Scope{} = scope) do
+  def list_provider_types(%Scope{} = _scope) do
     ProviderType
-    |> where(user_id: ^scope.user.id)
     |> order_by([pt], asc: pt.name)
     |> Repo.all()
   end
 
-  def get_provider_type!(%Scope{} = scope, id) do
+  def get_provider_type!(%Scope{} = _scope, id) do
     ProviderType
-    |> where(id: ^id, user_id: ^scope.user.id)
+    |> where(id: ^id)
     |> Repo.one!()
   end
 
@@ -120,8 +186,6 @@ defmodule ServiceHub.Providers do
 
   """
   def update_provider_type(%Scope{} = scope, %ProviderType{} = provider_type, attrs) do
-    true = provider_type.user_id == scope.user.id
-
     with {:ok, provider_type = %ProviderType{}} <-
            provider_type
            |> ProviderType.changeset(attrs, scope)
@@ -132,8 +196,6 @@ defmodule ServiceHub.Providers do
   end
 
   def delete_provider_type(%Scope{} = scope, %ProviderType{} = provider_type) do
-    true = provider_type.user_id == scope.user.id
-
     with {:ok, provider_type = %ProviderType{}} <-
            Repo.delete(provider_type) do
       broadcast_provider_type(scope, {:deleted, provider_type})
@@ -151,8 +213,6 @@ defmodule ServiceHub.Providers do
 
   """
   def change_provider_type(%Scope{} = scope, %ProviderType{} = provider_type, attrs \\ %{}) do
-    true = provider_type.user_id == scope.user.id
-
     ProviderType.changeset(provider_type, attrs, scope)
   end
 
@@ -168,16 +228,15 @@ defmodule ServiceHub.Providers do
     Phoenix.PubSub.broadcast(ServiceHub.PubSub, "user:#{key}:auth_types", message)
   end
 
-  def list_auth_types(%Scope{} = scope) do
+  def list_auth_types(%Scope{} = _scope) do
     AuthType
-    |> where(user_id: ^scope.user.id)
     |> order_by([at], asc: at.name)
     |> Repo.all()
   end
 
-  def get_auth_type!(%Scope{} = scope, id) do
+  def get_auth_type!(%Scope{} = _scope, id) do
     AuthType
-    |> where(id: ^id, user_id: ^scope.user.id)
+    |> where(id: ^id)
     |> Repo.one!()
   end
 
@@ -204,8 +263,6 @@ defmodule ServiceHub.Providers do
 
   """
   def update_auth_type(%Scope{} = scope, %AuthType{} = auth_type, attrs) do
-    true = auth_type.user_id == scope.user.id
-
     with {:ok, auth_type = %AuthType{}} <-
            auth_type
            |> AuthType.changeset(attrs, scope)
@@ -216,8 +273,6 @@ defmodule ServiceHub.Providers do
   end
 
   def delete_auth_type(%Scope{} = scope, %AuthType{} = auth_type) do
-    true = auth_type.user_id == scope.user.id
-
     with {:ok, auth_type = %AuthType{}} <-
            Repo.delete(auth_type) do
       broadcast_auth_type(scope, {:deleted, auth_type})
@@ -235,8 +290,15 @@ defmodule ServiceHub.Providers do
 
   """
   def change_auth_type(%Scope{} = scope, %AuthType{} = auth_type, attrs \\ %{}) do
-    true = auth_type.user_id == scope.user.id
-
     AuthType.changeset(auth_type, attrs, scope)
   end
+
+  defp parse_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {parsed, _} -> parsed
+      :error -> id
+    end
+  end
+
+  defp parse_id(id), do: id
 end

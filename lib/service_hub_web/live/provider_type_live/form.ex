@@ -56,7 +56,7 @@ defmodule ServiceHubWeb.ProviderTypeLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    provider_type = %ProviderType{user_id: socket.assigns.current_scope.user.id}
+    provider_type = %ProviderType{}
 
     socket
     |> assign(:page_title, "New Provider type")
