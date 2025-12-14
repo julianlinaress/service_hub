@@ -76,6 +76,16 @@ Create the first adapter: `Provider.Gitea`.
 - Do not add new components to `core_components.ex` unless they are genuinely reusable, application-wide core elements. Prefer creating new component modules.
 - Do not use hardcoded Tailwind CSS color classes like `bg-blue-500` or `text-red-700`. Instead, use CSS variables defined in `app.css` to align with the branding and theme (e.g., `bg-primary`, `text-danger`).
 
+### 2.5 Elixir Guard Constraints
+
+**Important:** Guards in Elixir can only use a limited set of functions and operators. Remote function calls like `String.trim/1`, `String.contains?/2`, or any module function cannot be invoked inside guards.
+
+- **Error example:** `when is_binary(value) and String.trim(value) != ""` → **NOT ALLOWED**
+- **Solution:** Move the logic outside the guard or use only allowed guard functions (type checks, comparison operators, arithmetic operators, and a small set of BIFs like `is_binary/1`, `is_nil/1`, `byte_size/1`, etc.)
+- **Correct approach:** Validate the value in the function body after pattern matching, not in the guard clause.
+
+See the [Elixir Guards documentation](https://hexdocs.pm/elixir/patterns-and-guards.html#guards) for the complete list of allowed functions in guards.
+
 ---
 
 ## 3. Roadmap Phases Overview
