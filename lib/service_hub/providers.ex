@@ -74,7 +74,8 @@ defmodule ServiceHub.Providers do
   end
 
   def change_provider(%Scope{} = scope, %Provider{} = provider, attrs \\ %{}) do
-    true = provider.user_id == scope.user.id
+    # Allow fresh structs without user_id while still enforcing ownership on persisted records
+    true = is_nil(provider.user_id) || provider.user_id == scope.user.id
 
     Provider.changeset(provider, attrs, scope)
   end
