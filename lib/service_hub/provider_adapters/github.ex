@@ -46,6 +46,364 @@ defmodule ServiceHub.ProviderAdapters.GitHub do
   end
 
   @impl true
+  def list_repositories(%Provider{} = provider) do
+    case auth_mode(provider) do
+      :installation -> list_installation_repositories(provider)
+      :oauth -> list_user_repositories(provider)
+      :pat -> list_user_repositories(provider)
+      :unknown -> {:error, :unsupported_auth_type}
+    end
+  end
+
+  @impl true
+  def list_branches(%Provider{} = provider, owner, repo) do
+    paginate_branches(provider, owner, repo, 1, [])
+  end
+
+  defp list_installation_repositories(%Provider{} = provider) do
+    paginate_installation_repositories(provider, 1, [])
+  end
+
+  defp paginate_installation_repositories(provider, page, acc) do
+    params = %{per_page: 100, page: page}
+
+    case request(provider, :get, "/installation/repositories", params: params) do
+      {:ok, %{status: 200, body: %{"repositories" => repos}}} ->
+        formatted = format_repositories(repos || [])
+        merged = acc ++ formatted
+
+        if length(repos || []) < params.per_page do
+          {:ok, merged}
+        else
+          paginate_installation_repositories(provider, page + 1, merged)
+        end
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 403}} ->
+        {:error, :forbidden}
+
+      {:ok, %{status: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp list_user_repositories(%Provider{} = provider) do
+    user_repos = paginate_user_repositories(provider, 1, [])
+    org_repos = list_org_admin_repositories(provider)
+
+    with {:ok, user_repos} <- user_repos,
+         {:ok, org_repos} <- org_repos do
+      {:ok, uniq_repositories(user_repos ++ org_repos)}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp paginate_user_repositories(provider, page, acc) do
+    params = %{
+      per_page: 100,
+      page: page,
+      affiliation: "owner,collaborator,organization_member",
+      visibility: "all"
+    }
+
+    case request(provider, :get, "/user/repos", params: params) do
+      {:ok, %{status: 200, body: repos}} when is_list(repos) ->
+        merged = acc ++ filter_admin_repositories(repos)
+
+        if length(repos) < params.per_page do
+          {:ok, format_repositories(merged)}
+        else
+          paginate_user_repositories(provider, page + 1, merged)
+        end
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 403}} ->
+        {:error, :forbidden}
+
+      {:ok, %{status: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp list_org_admin_repositories(provider) do
+    case paginate_org_memberships(provider, 1, []) do
+      {:ok, orgs} ->
+        orgs
+        |> Enum.flat_map(&org_repositories(provider, &1))
+        |> uniq_repositories()
+        |> wrap_ok()
+
+      {:error, :forbidden} ->
+        case paginate_user_orgs(provider, 1, []) do
+          {:ok, orgs} ->
+            orgs
+            |> Enum.flat_map(&org_repositories(provider, &1))
+            |> uniq_repositories()
+            |> wrap_ok()
+
+          {:error, :unauthorized} ->
+            {:error, :unauthorized}
+
+          {:error, reason} ->
+            {:ok, []} |> maybe_error(reason)
+        end
+
+      {:error, :unauthorized} ->
+        {:error, :unauthorized}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp paginate_org_memberships(provider, page, acc) do
+    params = %{per_page: 100, page: page, state: "active"}
+
+    case request(provider, :get, "/user/memberships/orgs", params: params) do
+      {:ok, %{status: 200, body: orgs}} when is_list(orgs) ->
+        admin_orgs =
+          Enum.filter(orgs, fn org ->
+            role = Map.get(org, "role") || Map.get(org, :role)
+            state = Map.get(org, "state") || Map.get(org, :state)
+            role in ["admin", :admin] and state in ["active", :active]
+          end)
+
+        merged = acc ++ Enum.map(admin_orgs, &normalize_org/1)
+
+        if length(orgs) < params.per_page do
+          {:ok, merged}
+        else
+          paginate_org_memberships(provider, page + 1, merged)
+        end
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 403}} ->
+        {:error, :forbidden}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp paginate_user_orgs(provider, page, acc) do
+    params = %{per_page: 100, page: page}
+
+    case request(provider, :get, "/user/orgs", params: params) do
+      {:ok, %{status: 200, body: orgs}} when is_list(orgs) ->
+        merged = acc ++ Enum.map(orgs, &normalize_org/1)
+
+        if length(orgs) < params.per_page do
+          {:ok, merged}
+        else
+          paginate_user_orgs(provider, page + 1, merged)
+        end
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 403}} ->
+        {:error, :forbidden}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp normalize_org(org) do
+    org_map =
+      Map.get(org, "organization") ||
+        Map.get(org, :organization) ||
+        org
+
+    %{
+      login: Map.get(org_map, "login") || Map.get(org_map, :login)
+    }
+  end
+
+  defp org_repositories(_provider, %{login: nil}), do: []
+
+  defp org_repositories(provider, %{login: login}) do
+    case paginate_org_repositories(provider, login, 1, []) do
+      {:ok, repos} -> repos
+      {:error, _} -> []
+    end
+  end
+
+  defp paginate_org_repositories(provider, org, page, acc) do
+    params = %{per_page: 100, page: page, type: "all"}
+
+    case request(provider, :get, "/orgs/#{org}/repos", params: params) do
+      {:ok, %{status: 200, body: repos}} when is_list(repos) ->
+        merged = acc ++ filter_admin_repositories(repos)
+
+        if length(repos) < params.per_page do
+          {:ok, format_repositories(merged)}
+        else
+          paginate_org_repositories(provider, org, page + 1, merged)
+        end
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 403}} ->
+        {:error, :forbidden}
+
+      {:ok, %{status: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp uniq_repositories(repos) do
+    repos
+    |> Enum.reduce(%{}, fn repo, acc ->
+      key = repo[:id] || repo[:full_name] || repo[:name]
+      Map.put_new(acc, key, repo)
+    end)
+    |> Map.values()
+  end
+
+  defp wrap_ok(value), do: {:ok, value}
+
+  defp maybe_error({:ok, value}, reason) do
+    case reason do
+      :unauthorized -> {:error, :unauthorized}
+      _ -> {:ok, value}
+    end
+  end
+
+  defp filter_admin_repositories(repos) do
+    Enum.filter(repos, fn repo ->
+      permissions =
+        Map.get(repo, "permissions") ||
+          Map.get(repo, :permissions) ||
+          %{}
+
+      admin? = Map.get(permissions, "admin") == true || Map.get(permissions, :admin) == true
+
+      maintain? =
+        Map.get(permissions, "maintain") == true || Map.get(permissions, :maintain) == true
+
+      push? = Map.get(permissions, "push") == true || Map.get(permissions, :push) == true
+
+      admin? or maintain? or push? or map_size(permissions) == 0
+    end)
+  end
+
+  defp format_repositories(repos) do
+    Enum.map(repos, &format_repository/1)
+  end
+
+  defp format_repository(repo) do
+    owner_map =
+      Map.get(repo, "owner") ||
+        Map.get(repo, :owner) ||
+        %{}
+
+    owner = Map.get(owner_map, "login") || Map.get(owner_map, :login)
+
+    name = Map.get(repo, "name") || Map.get(repo, :name)
+
+    full_name =
+      Map.get(repo, "full_name") || Map.get(repo, :full_name) || build_full_name(owner, name)
+
+    private? = Map.get(repo, "private", false) || Map.get(repo, :private, false)
+
+    %{
+      id: Map.get(repo, "id") || Map.get(repo, :id),
+      owner: owner,
+      name: name,
+      full_name: full_name,
+      private: private?
+    }
+  end
+
+  defp build_full_name(owner, name) when is_binary(owner) and is_binary(name) do
+    "#{owner}/#{name}"
+  end
+
+  defp build_full_name(_, name), do: name
+
+  defp paginate_branches(provider, owner, repo, page, acc) do
+    params = %{per_page: 100, page: page}
+
+    case request(provider, :get, "/repos/#{owner}/#{repo}/branches", params: params) do
+      {:ok, %{status: 200, body: branches}} when is_list(branches) ->
+        merged = acc ++ format_branches(branches)
+
+        if length(branches) < params.per_page do
+          {:ok, merged}
+        else
+          paginate_branches(provider, owner, repo, page + 1, merged)
+        end
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 403}} ->
+        {:error, :forbidden}
+
+      {:ok, %{status: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp format_branches(branches) do
+    Enum.map(branches, fn branch ->
+      %{
+        name: Map.get(branch, "name") || Map.get(branch, :name),
+        protected:
+          Map.get(branch, "protected", false) ||
+            Map.get(branch, :protected, false),
+        commit_sha:
+          branch
+          |> Map.get("commit")
+          |> case do
+            %{"sha" => sha} -> sha
+            %{sha: sha} -> sha
+            _ -> nil
+          end
+      }
+    end)
+  end
+
+  @impl true
   def dispatch_workflow(%Provider{} = provider, attrs) do
     with {:ok, owner} <- fetch_required(attrs, :owner),
          {:ok, repo} <- fetch_required(attrs, :repo),

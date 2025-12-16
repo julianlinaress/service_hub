@@ -30,6 +30,18 @@ defmodule ServiceHub.ProviderAdapters do
     end
   end
 
+  def list_repositories(%Provider{} = provider) do
+    with {:ok, adapter} <- adapter_for(provider) do
+      adapter.list_repositories(provider)
+    end
+  end
+
+  def list_branches(%Provider{} = provider, owner, repo) do
+    with {:ok, adapter} <- adapter_for(provider) do
+      adapter.list_branches(provider, owner, repo)
+    end
+  end
+
   def authorize_url(%Provider{} = provider, redirect_uri, state) do
     with {:ok, adapter} <- adapter_for(provider) do
       adapter.authorize_url(provider, redirect_uri, state)

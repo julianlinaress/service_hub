@@ -251,11 +251,11 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   def handle_event("cancel-github-connection", _params, socket) do
     {:noreply, assign(socket, :use_github_connection, false)}
   end
+
   def handle_event("save", %{"provider" => provider_params}, socket) do
     provider_params = maybe_apply_oauth_params(provider_params, socket)
     save_provider(socket, socket.assigns.live_action, provider_params)
   end
-
 
   defp maybe_apply_oauth_params(provider_params, socket) do
     if socket.assigns.use_github_connection do
@@ -272,6 +272,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
       provider_params
     end
   end
+
   defp save_provider(socket, :edit, provider_params) do
     case Providers.update_provider(
            socket.assigns.current_scope,

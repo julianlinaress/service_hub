@@ -11,6 +11,14 @@ defmodule ServiceHub.ProviderAdapters.Behaviour do
   @callback fetch_repo_metadata(%Provider{}, owner :: String.t(), repo :: String.t()) ::
               {:ok, map()} | {:error, :unauthorized | :not_found | term()}
 
+  @callback list_repositories(%Provider{}) ::
+              {:ok, list(map())}
+              | {:error, :unauthorized | :not_found | :unsupported_auth_type | term()}
+
+  @callback list_branches(%Provider{}, owner :: String.t(), repo :: String.t()) ::
+              {:ok, list(map())}
+              | {:error, :unauthorized | :not_found | :unsupported_auth_type | term()}
+
   @callback dispatch_workflow(%Provider{}, map()) :: {:ok, map()} | {:error, term()}
 
   @callback create_token(

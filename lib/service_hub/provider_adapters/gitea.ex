@@ -37,6 +37,136 @@ defmodule ServiceHub.ProviderAdapters.Gitea do
   end
 
   @impl true
+  def list_repositories(%Provider{} = provider) do
+    paginate_repositories(provider, 1, [])
+  end
+
+  @impl true
+  def list_branches(%Provider{} = provider, owner, repo) do
+    paginate_branches(provider, owner, repo, 1, [])
+  end
+
+  defp paginate_repositories(provider, page, acc) do
+    params = %{limit: 100, page: page}
+
+    case get(provider, "/api/v1/user/repos", params: params) do
+      {:ok, %{status: 200, body: repos}} when is_list(repos) ->
+        merged = acc ++ filter_admin_repositories(repos)
+
+        if length(repos) < params.limit do
+          {:ok, format_repositories(merged)}
+        else
+          paginate_repositories(provider, page + 1, merged)
+        end
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp filter_admin_repositories(repos) do
+    Enum.filter(repos, fn repo ->
+      permissions =
+        Map.get(repo, "permissions") ||
+          Map.get(repo, :permissions) ||
+          %{}
+
+      admin? = Map.get(permissions, "admin") == true || Map.get(permissions, :admin) == true
+      push? = Map.get(permissions, "push") == true || Map.get(permissions, :push) == true
+
+      admin? or push?
+    end)
+  end
+
+  defp format_repositories(repos) do
+    Enum.map(repos, fn repo ->
+      owner_map =
+        Map.get(repo, "owner") ||
+          Map.get(repo, :owner) ||
+          %{}
+
+      owner = Map.get(owner_map, "login") || Map.get(owner_map, :login)
+
+      name = Map.get(repo, "name") || Map.get(repo, :name)
+
+      %{
+        id: Map.get(repo, "id") || Map.get(repo, :id),
+        owner: owner,
+        name: name,
+        full_name:
+          Map.get(repo, "full_name") ||
+            Map.get(repo, :full_name) ||
+            build_full_name(owner, name),
+        private: Map.get(repo, "private", false) || Map.get(repo, :private, false)
+      }
+    end)
+  end
+
+  defp build_full_name(owner, name) when is_binary(owner) and is_binary(name) do
+    "#{owner}/#{name}"
+  end
+
+  defp build_full_name(_, name), do: name
+
+  defp paginate_branches(provider, owner, repo, page, acc) do
+    params = %{limit: 100, page: page}
+
+    case get(provider, "/api/v1/repos/#{owner}/#{repo}/branches", params: params) do
+      {:ok, %{status: 200, body: branches}} when is_list(branches) ->
+        merged = acc ++ format_branches(branches)
+
+        if length(branches) < params.limit do
+          {:ok, merged}
+        else
+          paginate_branches(provider, owner, repo, page + 1, merged)
+        end
+
+      {:ok, %{status: 403}} ->
+        {:error, :forbidden}
+
+      {:ok, %{status: 401}} ->
+        {:error, :unauthorized}
+
+      {:ok, %{status: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp format_branches(branches) do
+    Enum.map(branches, fn branch ->
+      %{
+        name: Map.get(branch, "name") || Map.get(branch, :name),
+        protected:
+          Map.get(branch, "protected", false) ||
+            Map.get(branch, :protected, false),
+        commit_sha:
+          branch
+          |> Map.get("commit")
+          |> case do
+            %{"id" => sha} -> sha
+            %{id: sha} -> sha
+            _ -> nil
+          end
+      }
+    end)
+  end
+
+  @impl true
   def create_token(%Provider{} = provider, username, password, attrs) do
     token_name = Map.get(attrs, "name") || Map.get(attrs, :name) || "service_hub_token"
     scopes = normalize_scopes(attrs)
@@ -65,11 +195,16 @@ defmodule ServiceHub.ProviderAdapters.Gitea do
     end
   end
 
-  defp get(provider, path) do
+  defp get(provider, path, opts \\ []) do
     with {:ok, url} <- build_url(provider.base_url, path),
          {:ok, token} <- fetch_token(provider),
          {:ok, response} <-
-           Req.request(method: :get, url: url, headers: [{"authorization", "token #{token}"}]) do
+           Req.request(
+             Keyword.merge(
+               [method: :get, url: url, headers: [{"authorization", "token #{token}"}]],
+               opts
+             )
+           ) do
       {:ok, response}
     else
       {:error, reason} -> {:error, reason}

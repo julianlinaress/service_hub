@@ -44,14 +44,26 @@ defmodule ServiceHubWeb.ProviderLive.Show do
       </.list>
 
       <section class="mt-8 space-y-4">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-3">
           <div>
             <h2 class="text-xl font-semibold">Services</h2>
             <p class="text-sm text-base-content/70">Linked repositories for this provider.</p>
           </div>
-          <.button variant="primary" patch={~p"/providers/#{@provider}/services/new"}>
-            <.icon name="hero-plus" /> New service
-          </.button>
+          <div class="flex items-center gap-3">
+            <.button
+              :if={provider_validated?(@provider)}
+              variant="primary"
+              patch={~p"/providers/#{@provider}/services/new"}
+            >
+              <.icon name="hero-plus" /> New service
+            </.button>
+            <.button :if={!provider_validated?(@provider)} variant="primary" disabled>
+              <.icon name="hero-plus" /> New service
+            </.button>
+            <span :if={!provider_validated?(@provider)} class="text-sm text-base-content/70">
+              Validate this provider before adding or editing services.
+            </span>
+          </div>
         </div>
 
         <.table id="services" rows={@services}>
@@ -65,10 +77,21 @@ defmodule ServiceHubWeb.ProviderLive.Show do
             {service.healthcheck_endpoint_template}
           </:col>
           <:action :let={service}>
-            <div class="sr-only">
+            <div :if={provider_validated?(@provider)} class="sr-only">
               <.link patch={~p"/providers/#{@provider}/services/#{service.id}/edit"}>Edit</.link>
             </div>
-            <.link patch={~p"/providers/#{@provider}/services/#{service.id}/edit"}>Edit</.link>
+            <.link
+              :if={provider_validated?(@provider)}
+              patch={~p"/providers/#{@provider}/services/#{service.id}/edit"}
+            >
+              Edit
+            </.link>
+            <span
+              :if={!provider_validated?(@provider)}
+              class="text-xs text-base-content/60"
+            >
+              Validate provider to edit
+            </span>
           </:action>
           <:action :let={service}>
             <.link
@@ -82,7 +105,10 @@ defmodule ServiceHubWeb.ProviderLive.Show do
         </.table>
       </section>
 
-      <section :if={@live_action in [:new_service, :edit_service]} class="mt-8">
+      <section
+        :if={@live_action in [:new_service, :edit_service] and provider_validated?(@provider)}
+        class="mt-8"
+      >
         <.live_component
           module={ServiceHubWeb.ServiceLive.FormComponent}
           id="service-form"
@@ -344,23 +370,35 @@ defmodule ServiceHubWeb.ProviderLive.Show do
   defp format_ts(_), do: ""
 
   defp apply_action(socket, :new_service, _params) do
-    socket
-    |> assign(:page_title, "New Service")
-    |> assign(
-      :service,
-      %Service{
-        provider_id: socket.assigns.provider.id,
-        owner: default_owner(socket.assigns.provider)
-      }
-    )
+    if provider_validated?(socket.assigns.provider) do
+      socket
+      |> assign(:page_title, "New Service")
+      |> assign(
+        :service,
+        %Service{
+          provider_id: socket.assigns.provider.id,
+          owner: default_owner(socket.assigns.provider)
+        }
+      )
+    else
+      socket
+      |> put_flash(:error, "Validate the provider connection before managing services.")
+      |> push_patch(to: ~p"/providers/#{socket.assigns.provider}")
+    end
   end
 
   defp apply_action(socket, :edit_service, %{"service_id" => service_id}) do
-    service = Services.get_service!(socket.assigns.current_scope, service_id)
+    if provider_validated?(socket.assigns.provider) do
+      service = Services.get_service!(socket.assigns.current_scope, service_id)
 
-    socket
-    |> assign(:page_title, "Edit Service")
-    |> assign(:service, service)
+      socket
+      |> assign(:page_title, "Edit Service")
+      |> assign(:service, service)
+    else
+      socket
+      |> put_flash(:error, "Validate the provider connection before managing services.")
+      |> push_patch(to: ~p"/providers/#{socket.assigns.provider}")
+    end
   end
 
   defp apply_action(socket, :show, _params) do
@@ -376,6 +414,9 @@ defmodule ServiceHubWeb.ProviderLive.Show do
   defp token_form do
     to_form(%{"username" => nil, "password" => nil, "name" => "service_hub_token"}, as: :token)
   end
+
+  defp provider_validated?(%{last_validation_status: "ok"}), do: true
+  defp provider_validated?(_), do: false
 
   defp default_owner(%{auth_data: auth_data, provider_type: %{key: "github"}}) do
     auth_data = auth_data || %{}

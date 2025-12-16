@@ -42,6 +42,7 @@ defmodule ServiceHub.Services do
   def create_service(%Scope{} = scope, attrs) do
     with {:ok, provider} <- fetch_provider(scope, provider_id_from_attrs(attrs)),
          changeset <- Service.changeset(%Service{provider_id: provider.id}, attrs),
+         {:ok, _} <- ensure_provider_validated(provider, changeset),
          {:ok, _} <- validate_repo(provider, changeset),
          {:ok, service} <- Repo.insert(changeset) do
       broadcast_service(scope, provider.id, {:created, service})
@@ -55,7 +56,8 @@ defmodule ServiceHub.Services do
 
     changeset = Service.changeset(service, attrs)
 
-    with {:ok, _} <- validate_repo(service.provider, changeset),
+    with {:ok, _} <- ensure_provider_validated(service.provider, changeset),
+         {:ok, _} <- validate_repo(service.provider, changeset),
          {:ok, service} <- Repo.update(changeset) do
       broadcast_service(scope, service.provider_id, {:updated, service})
       {:ok, service}
@@ -118,6 +120,23 @@ defmodule ServiceHub.Services do
 
   defp add_repo_error(changeset, reason) do
     Ecto.Changeset.add_error(changeset, :repo, "Unable to verify repository: #{inspect(reason)}")
+  end
+
+  defp ensure_provider_validated(%Provider{} = provider, %Ecto.Changeset{} = changeset) do
+    if provider_validated?(provider) do
+      {:ok, provider}
+    else
+      {:error,
+       Ecto.Changeset.add_error(
+         changeset,
+         :provider_id,
+         "Validate the provider connection before managing services"
+       )}
+    end
+  end
+
+  defp provider_validated?(%Provider{last_validation_status: status}) do
+    status == "ok"
   end
 
   defp fetch_provider(%Scope{} = scope, provider_id) when is_integer(provider_id) do

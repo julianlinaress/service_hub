@@ -9,6 +9,7 @@ defmodule ServiceHub.Services.Service do
     field :owner, :string
     field :repo, :string
     field :default_ref, :string
+    field :repo_full_name, :string, virtual: true
     field :version_endpoint_template, :string
     field :healthcheck_endpoint_template, :string
     belongs_to :provider, Provider
@@ -23,6 +24,7 @@ defmodule ServiceHub.Services.Service do
       :owner,
       :repo,
       :default_ref,
+      :repo_full_name,
       :version_endpoint_template,
       :healthcheck_endpoint_template,
       :provider_id
