@@ -198,6 +198,15 @@ defmodule ServiceHub.ProviderAdapters.GitHub do
   defp auth_mode(%Provider{auth_type: %{key: "oauth"}}), do: :oauth
   defp auth_mode(%Provider{auth_type: %{key: "github_pat"}}), do: :pat
   defp auth_mode(%Provider{auth_type: %{key: "token"}}), do: :pat
+
+  defp auth_mode(%Provider{auth_type: nil, auth_data: auth_data}) do
+    if token_present?(auth_data) do
+      :oauth
+    else
+      :unknown
+    end
+  end
+
   defp auth_mode(_), do: :unknown
 
   defp pat_token(%Provider{auth_data: auth_data}) do
@@ -210,6 +219,12 @@ defmodule ServiceHub.ProviderAdapters.GitHub do
       _ ->
         {:error, :missing_token}
     end
+  end
+
+  defp token_present?(auth_data) do
+    auth_data = auth_data || %{}
+    token = Map.get(auth_data, "token") || Map.get(auth_data, :token)
+    is_binary(token) and byte_size(String.trim(token)) > 0
   end
 
   defp oauth_token(%Provider{auth_data: auth_data}) do

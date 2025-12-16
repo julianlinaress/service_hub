@@ -227,7 +227,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
       %AccountConnection{token: token} = connection ->
         params =
           socket.assigns.form.params
-          |> ensure_params()
+          |> ensure_params(socket.assigns.provider)
           |> put_in(["auth_data", "token"], token)
           |> put_scope(connection.scope)
           |> maybe_put_github_oauth_auth_type(socket.assigns.auth_types)
@@ -251,11 +251,27 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   def handle_event("cancel-github-connection", _params, socket) do
     {:noreply, assign(socket, :use_github_connection, false)}
   end
-
   def handle_event("save", %{"provider" => provider_params}, socket) do
+    provider_params = maybe_apply_oauth_params(provider_params, socket)
     save_provider(socket, socket.assigns.live_action, provider_params)
   end
 
+
+  defp maybe_apply_oauth_params(provider_params, socket) do
+    if socket.assigns.use_github_connection do
+      with %AccountConnection{} = conn <- socket.assigns.github_connection do
+        provider_params
+        |> ensure_params(socket.assigns.provider)
+        |> put_in(["auth_data", "token"], conn.token)
+        |> put_scope(conn.scope)
+        |> maybe_put_github_oauth_auth_type(socket.assigns.auth_types)
+      else
+        _ -> provider_params
+      end
+    else
+      provider_params
+    end
+  end
   defp save_provider(socket, :edit, provider_params) do
     case Providers.update_provider(
            socket.assigns.current_scope,
@@ -263,6 +279,9 @@ defmodule ServiceHubWeb.ProviderLive.Form do
            provider_params
          ) do
       {:ok, provider} ->
+        {:ok, provider} =
+          Providers.validate_provider_connection(socket.assigns.current_scope, provider)
+
         {:noreply,
          socket
          |> put_flash(:info, "Provider updated successfully")
@@ -278,6 +297,9 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   defp save_provider(socket, :new, provider_params) do
     case Providers.create_provider(socket.assigns.current_scope, provider_params) do
       {:ok, provider} ->
+        {:ok, provider} =
+          Providers.validate_provider_connection(socket.assigns.current_scope, provider)
+
         {:noreply,
          socket
          |> put_flash(:info, "Provider created successfully")
@@ -359,12 +381,15 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   defp put_scope(params, nil), do: params
   defp put_scope(params, scope), do: put_in(params, ["auth_data", "scope"], scope)
 
-  defp ensure_params(nil), do: %{"auth_data" => %{}}
+  defp ensure_params(nil, provider), do: ensure_params(%{}, provider)
 
-  defp ensure_params(params) when is_map(params) do
-    Map.update(params, "auth_data", %{}, fn
-      map when is_map(map) -> map
-      _ -> %{}
+  defp ensure_params(params, provider) when is_map(params) do
+    existing_auth_data = (provider && provider.auth_data) || %{}
+
+    params
+    |> Map.update("auth_data", existing_auth_data, fn
+      map when is_map(map) -> Map.merge(existing_auth_data, map)
+      _ -> existing_auth_data
     end)
   end
 
