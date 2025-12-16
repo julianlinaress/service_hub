@@ -86,6 +86,10 @@ Create the first adapter: `Provider.Gitea`.
 
 See the [Elixir Guards documentation](https://hexdocs.pm/elixir/patterns-and-guards.html#guards) for the complete list of allowed functions in guards.
 
+### 2.6 Env defaults
+
+- Para `System.get_env/2` y `Envar.get/2`, usa el segundo argumento para defaults. No uses `|| default` para asignar valores por defecto a variables de entorno.
+
 ---
 
 ## 3. Roadmap Phases Overview
