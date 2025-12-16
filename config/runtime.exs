@@ -1,5 +1,12 @@
 import Config
 
+# Load .env file when present (use ENV_FILE to override path)
+dotenv_path = System.get_env("ENV_FILE", ".env")
+
+if File.exists?(dotenv_path) do
+  Envar.load(dotenv_path)
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration
@@ -20,10 +27,26 @@ if System.get_env("PHX_SERVER") do
   config :service_hub, ServiceHubWeb.Endpoint, server: true
 end
 
+if config_env() in [:dev, :test] do
+  config :service_hub,
+    github_oauth_client_id: System.get_env("GITHUB_OAUTH_CLIENT_ID"),
+    github_oauth_client_secret: System.get_env("GITHUB_OAUTH_CLIENT_SECRET"),
+    github_oauth_base_url: System.get_env("GITHUB_OAUTH_BASE_URL", "https://api.github.com")
+end
+
 config :service_hub, ServiceHubWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
+  config :service_hub,
+    github_oauth_client_id:
+      System.get_env("GITHUB_OAUTH_CLIENT_ID") ||
+        raise("environment variable GITHUB_OAUTH_CLIENT_ID is missing"),
+    github_oauth_client_secret:
+      System.get_env("GITHUB_OAUTH_CLIENT_SECRET") ||
+        raise("environment variable GITHUB_OAUTH_CLIENT_SECRET is missing"),
+    github_oauth_base_url: System.get_env("GITHUB_OAUTH_BASE_URL", "https://api.github.com")
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

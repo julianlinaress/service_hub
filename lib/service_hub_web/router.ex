@@ -42,6 +42,11 @@ defmodule ServiceHubWeb.Router do
   scope "/", ServiceHubWeb do
     pipe_through [:browser, :require_authenticated_user]
 
+    get "/oauth/:provider/start", AccountOAuthController, :start
+    get "/oauth/:provider/callback", AccountOAuthController, :callback
+    get "/providers/:id/oauth/start", ProviderOAuthController, :start
+    get "/providers/:id/oauth/callback", ProviderOAuthController, :callback
+
     live_session :require_authenticated_user,
       on_mount: [{ServiceHubWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit

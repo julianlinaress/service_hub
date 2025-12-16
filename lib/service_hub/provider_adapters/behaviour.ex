@@ -20,4 +20,12 @@ defmodule ServiceHub.ProviderAdapters.Behaviour do
               attrs :: map()
             ) ::
               {:ok, token :: String.t()} | {:error, term()}
+
+  @callback authorize_url(%Provider{}, redirect_uri :: String.t(), state :: String.t()) ::
+              {:ok, String.t()} | {:error, term()}
+
+  @callback exchange_oauth_token(%Provider{}, code :: String.t(), redirect_uri :: String.t()) ::
+              {:ok, map()} | {:error, term()}
+
+  @callback default_oauth_scope() :: String.t() | nil
 end

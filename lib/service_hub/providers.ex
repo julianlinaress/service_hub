@@ -132,11 +132,57 @@ defmodule ServiceHub.Providers do
     end
   end
 
+  def apply_account_connection(%Scope{} = scope, %Provider{} = provider, conn_attrs) do
+    true = provider.user_id == scope.user.id
+
+    auth_data =
+      provider.auth_data
+      |> Kernel.||(%{})
+      |> Map.merge(conn_attrs)
+
+    provider
+    |> Ecto.Changeset.change(auth_data: auth_data)
+    |> Repo.update()
+  end
+
+  def save_provider_auth_data(%Scope{} = scope, %Provider{} = provider, attrs)
+      when is_map(attrs) do
+    true = provider.user_id == scope.user.id
+
+    merged =
+      provider.auth_data
+      |> Kernel.||(%{})
+      |> Map.merge(attrs)
+
+    with {:ok, provider} <-
+           provider
+           |> Ecto.Changeset.change(auth_data: merged)
+           |> Repo.update() do
+      broadcast_provider(scope, {:updated, provider})
+      {:ok, provider}
+    end
+  end
+
   defp format_validation_error(:unauthorized), do: "Unauthorized"
   defp format_validation_error(:not_found), do: "Provider not reachable"
+  defp format_validation_error(:forbidden), do: "Forbidden"
+  defp format_validation_error(:missing_token), do: "Missing token in auth data"
+  defp format_validation_error(:bad_request), do: "Bad request to provider"
+  defp format_validation_error(:missing_auth_type), do: "No auth type configured"
+
+  defp format_validation_error({:missing_auth_field, field}),
+    do: "Missing auth field #{field}"
 
   defp format_validation_error({:unexpected_status, status}),
     do: "Unexpected response (#{status})"
+
+  defp format_validation_error({:unexpected_status, status, _body}),
+    do: "Unexpected response (#{status})"
+
+  defp format_validation_error(:invalid_private_key), do: "Invalid private key"
+  defp format_validation_error(:invalid_jwt_payload), do: "Invalid JWT payload"
+  defp format_validation_error(:invalid_base_url), do: "Invalid base URL"
+  defp format_validation_error(:unsupported_auth_type), do: "Unsupported auth type"
 
   defp format_validation_error(reason), do: inspect(reason)
 

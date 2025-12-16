@@ -1,6 +1,8 @@
 defmodule ServiceHubWeb.ProviderLive.Form do
   use ServiceHubWeb, :live_view
 
+  alias ServiceHub.AccountConnections
+  alias ServiceHub.AccountConnections.AccountConnection
   alias ServiceHub.Providers
   alias ServiceHub.Providers.Provider
 
@@ -12,24 +14,97 @@ defmodule ServiceHubWeb.ProviderLive.Form do
         {@page_title}
         <:subtitle>Use this form to manage provider records in your database.</:subtitle>
       </.header>
-
       <.form for={@form} id="provider-form" phx-change="validate" phx-submit="save">
-        <.input field={@form[:name]} type="text" label="Name" />
-        <.input
-          field={@form[:provider_type_id]}
-          type="select"
-          label="Provider type"
-          prompt="Select provider type"
-          options={Enum.map(@provider_types, &{&1.name, &1.id})}
-        />
-        <.input field={@form[:base_url]} type="text" label="Base URL" />
-        <.input
-          field={@form[:auth_type_id]}
-          type="select"
-          label="Auth type"
-          prompt="Select auth type"
-          options={Enum.map(@auth_types, &{&1.name, &1.id})}
-        />
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="space-y-4">
+            <.input field={@form[:name]} type="text" label="Name" />
+            <.input
+              field={@form[:provider_type_id]}
+              type="select"
+              label="Provider type"
+              prompt="Select provider type"
+              options={Enum.map(@provider_types, &{&1.name, &1.id})}
+            />
+            <.input
+              field={@form[:base_url]}
+              type="text"
+              label="Base URL"
+              placeholder="https://api.github.com"
+            />
+            <div :if={@provider_key == "github"} class="space-y-1">
+              <p class="text-xs text-base-content/70">
+                GitHub host helper (API base): github.com o tu instancia Enterprise.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <.button
+                  type="button"
+                  phx-click="preset-base-url"
+                  phx-value-url="https://api.github.com"
+                >
+                  Use github.com API
+                </.button>
+                <.button type="button" phx-click="preset-base-url" phx-value-url="">
+                  Clear URL
+                </.button>
+              </div>
+            </div>
+          </div>
+
+          <div :if={@provider_key == "github"} class="space-y-4">
+            <div class="rounded border border-base-300/80 p-4">
+              <p class="text-sm font-semibold mb-2">Connect with GitHub (recommended)</p>
+              <p class="text-xs text-base-content/70">
+                Conecta por OAuth y rellenamos la credencial para este provider automáticamente.
+              </p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <.link
+                  class="btn btn-primary inline-flex items-center gap-2"
+                  href={~p"/oauth/github/start"}
+                  target="_blank"
+                >
+                  <.icon name="hero-key" class="h-4 w-4" />
+                  {if @github_connection, do: "Reconnect GitHub", else: "Connect GitHub"}
+                </.link>
+                <.button
+                  :if={@github_connection}
+                  type="button"
+                  phx-click="use-account-connection"
+                  phx-disable-with="Applying..."
+                >
+                  Use my GitHub connection
+                </.button>
+                <.button
+                  :if={@use_github_connection}
+                  type="button"
+                  phx-click="cancel-github-connection"
+                >
+                  Cancel use
+                </.button>
+              </div>
+              <p :if={@github_connection} class="text-xs text-base-content/60 mt-2">
+                Scope: {@github_connection.scope || "not provided"}
+              </p>
+              <p :if={@use_github_connection} class="text-xs text-success mt-2">
+                Using GitHub connection for auth data.
+              </p>
+            </div>
+
+            <div class="rounded border border-base-300/80 p-4">
+              <p class="text-sm font-semibold mb-2">Or select custom auth</p>
+              <p class="text-xs text-base-content/70">
+                Usa PAT o GitHub App manualmente si prefieres no conectar por OAuth.
+              </p>
+              <.input
+                field={@form[:auth_type_id]}
+                type="select"
+                label="Auth type"
+                prompt="Select auth type"
+                options={Enum.map(@auth_types, &{&1.name, &1.id})}
+                disabled={disable_auth_select?(@form, @use_github_connection)}
+              />
+            </div>
+          </div>
+        </div>
 
         <div :if={map_size(@provider_field_defs) > 0} class="space-y-2">
           <h3 class="text-sm font-semibold">Provider settings</h3>
@@ -57,6 +132,21 @@ defmodule ServiceHubWeb.ProviderLive.Form do
           </div>
         </div>
 
+        <div :if={@provider_key == "github"} class="space-y-2">
+          <h3 class="text-sm font-semibold">GitHub defaults</h3>
+          <p class="text-xs text-base-content/70">
+            Optional. Use this when the provider represents a single organization to prefill service
+            owners and keep health/version endpoints consistent.
+          </p>
+          <.input
+            id="github-organization"
+            name="provider[auth_data][organization]"
+            label="Organization (optional)"
+            type="text"
+            value={field_value(@form, "organization")}
+          />
+        </div>
+
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Provider</.button>
           <.button navigate={return_path(@current_scope, @return_to, @provider)}>Cancel</.button>
@@ -75,6 +165,10 @@ defmodule ServiceHubWeb.ProviderLive.Form do
      |> assign(:return_to, return_to(params["return_to"]))
      |> assign(:provider_field_defs, %{})
      |> assign(:auth_field_defs, %{})
+     |> assign(:provider_key, nil)
+     |> assign(:auth_key, nil)
+     |> assign(:github_connection, nil)
+     |> assign(:use_github_connection, false)
      |> apply_action(socket.assigns.live_action, params)}
   end
 
@@ -114,6 +208,48 @@ defmodule ServiceHubWeb.ProviderLive.Form do
       )
 
     {:noreply, assign_form(socket, %{changeset | action: :validate})}
+  end
+
+  def handle_event("preset-base-url", %{"url" => url}, socket) do
+    params =
+      (socket.assigns.form.params || %{})
+      |> Map.put("base_url", url)
+
+    {:noreply,
+     assign_form(
+       socket,
+       Providers.change_provider(socket.assigns.current_scope, socket.assigns.provider, params)
+     )}
+  end
+
+  def handle_event("use-account-connection", _params, socket) do
+    case socket.assigns.github_connection do
+      %AccountConnection{token: token} = connection ->
+        params =
+          socket.assigns.form.params
+          |> ensure_params()
+          |> put_in(["auth_data", "token"], token)
+          |> put_scope(connection.scope)
+          |> maybe_put_github_oauth_auth_type(socket.assigns.auth_types)
+
+        {:noreply,
+         assign_form(
+           socket,
+           Providers.change_provider(
+             socket.assigns.current_scope,
+             socket.assigns.provider,
+             params
+           )
+         )
+         |> assign(:use_github_connection, true)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "No GitHub connection available")}
+    end
+  end
+
+  def handle_event("cancel-github-connection", _params, socket) do
+    {:noreply, assign(socket, :use_github_connection, false)}
   end
 
   def handle_event("save", %{"provider" => provider_params}, socket) do
@@ -159,16 +295,28 @@ defmodule ServiceHubWeb.ProviderLive.Form do
 
   defp assign_form(socket, changeset) do
     form = to_form(changeset)
-    provider_field_defs = type_fields(form, socket.assigns.provider_types, :provider_type_id)
-    auth_field_defs = type_fields(form, socket.assigns.auth_types, :auth_type_id)
+    provider_type = current_type(form, socket.assigns.provider_types, :provider_type_id)
+    auth_type = current_type(form, socket.assigns.auth_types, :auth_type_id)
+    provider_field_defs = (provider_type && provider_type.required_fields) || %{}
+    auth_field_defs = (auth_type && auth_type.required_fields) || %{}
+    github_connection = load_github_connection(socket.assigns.current_scope, provider_type)
 
     socket
     |> assign(:form, form)
     |> assign(:provider_field_defs, provider_field_defs)
     |> assign(:auth_field_defs, auth_field_defs)
+    |> assign(:provider_key, provider_type && provider_type.key)
+    |> assign(:auth_key, auth_type && auth_type.key)
+    |> assign(:github_connection, github_connection)
+    |> assign_new(:use_github_connection, fn -> false end)
   end
 
-  defp type_fields(form, types, key_field) do
+  defp current_type(form, types, key_field) do
+    type_id = selected_type_id(form, key_field)
+    Enum.find(types, &(&1.id == type_id))
+  end
+
+  defp selected_type_id(form, key_field) do
     params = form.params || %{}
 
     type_id =
@@ -176,18 +324,18 @@ defmodule ServiceHubWeb.ProviderLive.Form do
         params[key_field] ||
         Map.get(form.data, key_field)
 
-    type_id =
-      case type_id do
-        "" -> nil
-        value when is_binary(value) -> String.to_integer(value)
-        value -> value
-      end
-
-    case Enum.find(types, &(&1.id == type_id)) do
-      nil -> %{}
-      type -> type.required_fields || %{}
+    case type_id do
+      "" -> nil
+      value when is_binary(value) -> String.to_integer(value)
+      value -> value
     end
   end
+
+  defp load_github_connection(scope, %{key: "github"}) do
+    AccountConnections.get_connection(scope, "github")
+  end
+
+  defp load_github_connection(_, _), do: nil
 
   defp field_label(_key, %{"label" => label}) when is_binary(label), do: label
   defp field_label(key, _), do: Phoenix.Naming.humanize(key)
@@ -206,5 +354,45 @@ defmodule ServiceHubWeb.ProviderLive.Form do
       end
 
     Map.get(auth_data, key) || Map.get(auth_data, to_string(key)) || ""
+  end
+
+  defp put_scope(params, nil), do: params
+  defp put_scope(params, scope), do: put_in(params, ["auth_data", "scope"], scope)
+
+  defp ensure_params(nil), do: %{"auth_data" => %{}}
+
+  defp ensure_params(params) when is_map(params) do
+    Map.update(params, "auth_data", %{}, fn
+      map when is_map(map) -> map
+      _ -> %{}
+    end)
+  end
+
+  defp maybe_put_github_oauth_auth_type(params, auth_types) do
+    case github_oauth_id(auth_types) do
+      nil -> params
+      id -> Map.put(params, "auth_type_id", id)
+    end
+  end
+
+  defp github_oauth_id(auth_types) do
+    auth_types
+    |> Enum.find(fn at -> at.key in ["github_oauth", "oauth"] end)
+    |> case do
+      nil -> nil
+      %{id: id} -> id
+    end
+  end
+
+  defp disable_auth_select?(form, use_github_connection) do
+    type =
+      form.params
+      |> Map.get("provider_type_id")
+      |> case do
+        "" -> nil
+        val -> val
+      end
+
+    is_nil(type) or use_github_connection
   end
 end

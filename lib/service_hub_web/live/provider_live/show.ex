@@ -95,7 +95,76 @@ defmodule ServiceHubWeb.ProviderLive.Show do
         />
       </section>
 
-      <section class="mt-8 space-y-4">
+      <section :if={provider_key(@provider) == "github"} class="mt-8">
+        <div class="card bg-base-100 shadow-md">
+          <div class="card-body space-y-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h2 class="text-xl font-semibold">GitHub setup</h2>
+                <p class="text-sm text-base-content/70">
+                  Works with personal accounts or organizations. Configuration stays in the database.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="badge badge-outline">
+                  Auth: {(@provider.auth_type && @provider.auth_type.name) || "Not set"}
+                </span>
+                <.button
+                  :if={oauth_capable?(@provider)}
+                  navigate={~p"/oauth/github/start"}
+                  variant="primary"
+                >
+                  <.icon name="hero-key" class="h-4 w-4" />
+                  {oauth_button_label(@provider)}
+                </.button>
+              </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2 rounded border border-base-300/80 p-4">
+                <p class="flex items-center gap-2 text-sm font-semibold">
+                  <.icon name="hero-building-office-2" class="h-4 w-4" /> Ownership & host
+                </p>
+                <p class="text-sm text-base-content/70">Base URL: {@provider.base_url}</p>
+                <p class="text-sm text-base-content/70">
+                  Default org: {default_owner(@provider) || "Not set"}
+                </p>
+                <p class="text-xs text-base-content/60">
+                  Services default to this owner; you can override per repo when adding services.
+                </p>
+              </div>
+
+              <div class="space-y-2 rounded border border-base-300/80 p-4">
+                <p class="flex items-center gap-2 text-sm font-semibold">
+                  <.icon name="hero-lock-closed" class="h-4 w-4" /> Auth options
+                </p>
+                <ul class="list-disc space-y-1 pl-4 text-sm text-base-content/70">
+                  <li>
+                    Personal access token: store it in auth data (fine-grained or classic). Ideal for
+                    quick setups.
+                  </li>
+                  <li>
+                    GitHub App installation: set App ID, installation ID, and PEM key to mint
+                    installation tokens automatically.
+                  </li>
+                  <li>
+                    OAuth app: connect once and store tokens securely in this provider.
+                  </li>
+                </ul>
+                <a
+                  href="https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api?apiVersion=2022-11-28"
+                  class="link text-sm"
+                  target="_blank"
+                >
+                  View GitHub REST auth guide
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section :if={provider_key(@provider) == "gitea"} class="mt-8 space-y-4">
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-xl font-semibold">Gitea token helper</h2>
@@ -277,7 +346,13 @@ defmodule ServiceHubWeb.ProviderLive.Show do
   defp apply_action(socket, :new_service, _params) do
     socket
     |> assign(:page_title, "New Service")
-    |> assign(:service, %Service{provider_id: socket.assigns.provider.id})
+    |> assign(
+      :service,
+      %Service{
+        provider_id: socket.assigns.provider.id,
+        owner: default_owner(socket.assigns.provider)
+      }
+    )
   end
 
   defp apply_action(socket, :edit_service, %{"service_id" => service_id}) do
@@ -300,5 +375,32 @@ defmodule ServiceHubWeb.ProviderLive.Show do
 
   defp token_form do
     to_form(%{"username" => nil, "password" => nil, "name" => "service_hub_token"}, as: :token)
+  end
+
+  defp default_owner(%{auth_data: auth_data, provider_type: %{key: "github"}}) do
+    auth_data = auth_data || %{}
+
+    Map.get(auth_data, "organization") || Map.get(auth_data, :organization)
+  end
+
+  defp default_owner(_), do: nil
+
+  defp provider_key(%{provider_type: %{key: key}}), do: key
+  defp provider_key(_), do: nil
+
+  defp oauth_capable?(%{auth_type: %{key: key}, provider_type: %{key: "github"}})
+       when key in ["github_oauth", "oauth"],
+       do: true
+
+  defp oauth_capable?(_), do: false
+
+  defp oauth_button_label(%{auth_data: auth_data}) do
+    auth_data = auth_data || %{}
+
+    if Map.get(auth_data, "token") do
+      "Reconnect OAuth"
+    else
+      "Connect with GitHub"
+    end
   end
 end

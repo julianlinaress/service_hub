@@ -7,6 +7,7 @@ defmodule ServiceHub.ProviderAdapters.Gitea do
 
   alias ServiceHub.Providers.Provider
 
+  @impl true
   def validate_connection(%Provider{} = provider) do
     case get(provider, "/api/v1/user") do
       {:ok, %{status: 200}} -> :ok
@@ -17,6 +18,7 @@ defmodule ServiceHub.ProviderAdapters.Gitea do
     end
   end
 
+  @impl true
   def fetch_repo_metadata(%Provider{} = provider, owner, repo) do
     path = "/api/v1/repos/#{owner}/#{repo}"
 
@@ -29,10 +31,12 @@ defmodule ServiceHub.ProviderAdapters.Gitea do
     end
   end
 
+  @impl true
   def dispatch_workflow(_provider, _attrs) do
     {:error, :not_implemented}
   end
 
+  @impl true
   def create_token(%Provider{} = provider, username, password, attrs) do
     token_name = Map.get(attrs, "name") || Map.get(attrs, :name) || "service_hub_token"
     scopes = normalize_scopes(attrs)
@@ -116,4 +120,13 @@ defmodule ServiceHub.ProviderAdapters.Gitea do
       "read:notification"
     ]
   end
+
+  @impl true
+  def authorize_url(_provider, _redirect_uri, _state), do: {:error, :not_supported}
+
+  @impl true
+  def exchange_oauth_token(_provider, _code, _redirect_uri), do: {:error, :not_supported}
+
+  @impl true
+  def default_oauth_scope, do: nil
 end
