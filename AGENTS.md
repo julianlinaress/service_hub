@@ -75,6 +75,7 @@ Create the first adapter: `Provider.Gitea`.
 - Use LiveComponents for stateful or highly interactive pieces that need fine-grained control.
 - Do not add new components to `core_components.ex` unless they are genuinely reusable, application-wide core elements. Prefer creating new component modules.
 - Do not use hardcoded Tailwind CSS color classes like `bg-blue-500` or `text-red-700`. Instead, use CSS variables defined in `app.css` to align with the branding and theme (e.g., `bg-primary`, `text-danger`).
+- LiveView async pattern (repos/branches, etc.): initialize assigns to `AsyncResult.loading()`, trigger asynchronous work with `start_async/3` (no module prefix needed), handle results in `handle_async/3` updating the `AsyncResult` via `AsyncResult.ok/1` or `AsyncResult.failed/2`, and render with `<.async_result>` slots (`:loading`, `:failed`, default `:let={result}`). If re-fetching, reset the assign back to `AsyncResult.loading()` before calling `start_async/3`. **Always include an error clause in `handle_async/3` (e.g., `{:exit, reason}`) to avoid crashing the LiveView and surface failures to the UI.**
 
 ### 2.5 Elixir Guard Constraints
 
