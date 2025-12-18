@@ -82,11 +82,16 @@ defmodule ServiceHub.Providers do
 
   def validate_provider_connection(%Scope{} = scope, provider_or_id) do
     provider = get_provider!(scope, provider_or_id)
+    log("Starting validation for provider #{provider.id} (#{provider.name})")
     now = DateTime.utc_now(:second)
 
+    validation_result = ProviderAdapters.validate_connection(provider)
+    log("Validation result: #{inspect(validation_result)}")
+
     status_update =
-      case ProviderAdapters.validate_connection(provider) do
+      case validation_result do
         :ok ->
+          log("Validation successful, updating status to 'ok'")
           %{
             last_validation_status: "ok",
             last_validation_error: nil,
@@ -94,9 +99,11 @@ defmodule ServiceHub.Providers do
           }
 
         {:error, reason} ->
+          error_msg = format_validation_error(reason)
+          log("Validation failed: #{inspect(reason)} -> #{error_msg}")
           %{
             last_validation_status: "error",
-            last_validation_error: format_validation_error(reason),
+            last_validation_error: error_msg,
             last_validated_at: now
           }
       end
@@ -105,8 +112,17 @@ defmodule ServiceHub.Providers do
            provider
            |> Ecto.Changeset.change(status_update)
            |> Repo.update() do
+      provider = Repo.preload(provider, [:provider_type, :auth_type], force: true)
+      log("Provider updated in DB, broadcasting update")
       broadcast_provider(scope, {:updated, provider})
-      {:ok, provider}
+
+      result = case validation_result do
+        :ok -> {:ok, provider}
+        {:error, reason} -> {:error, reason}
+      end
+      
+      log("Returning: #{inspect(result |> elem(0))}")
+      result
     end
   end
 
@@ -125,6 +141,7 @@ defmodule ServiceHub.Providers do
            provider
            |> Ecto.Changeset.change(auth_data: Map.put(provider.auth_data || %{}, "token", token))
            |> Repo.update() do
+      provider = Repo.preload(provider, [:provider_type, :auth_type], force: true)
       broadcast_provider(scope, {:updated, provider})
       {:ok, token}
     else
@@ -158,17 +175,21 @@ defmodule ServiceHub.Providers do
            provider
            |> Ecto.Changeset.change(auth_data: merged)
            |> Repo.update() do
+      provider = Repo.preload(provider, [:provider_type, :auth_type], force: true)
       broadcast_provider(scope, {:updated, provider})
       {:ok, provider}
     end
   end
 
-  defp format_validation_error(:unauthorized), do: "Unauthorized"
+  defp format_validation_error(:unauthorized), do: "Unauthorized - check your token"
   defp format_validation_error(:not_found), do: "Provider not reachable"
   defp format_validation_error(:forbidden), do: "Forbidden"
   defp format_validation_error(:missing_token), do: "Missing token in auth data"
   defp format_validation_error(:bad_request), do: "Bad request to provider"
   defp format_validation_error(:missing_auth_type), do: "No auth type configured"
+  defp format_validation_error(:connection_refused), do: "Connection refused - check base URL"
+  defp format_validation_error(:dns_error), do: "DNS error - invalid hostname"
+  defp format_validation_error({:request_failed, msg}), do: "Request failed: #{msg}"
 
   defp format_validation_error({:missing_auth_field, field}),
     do: "Missing auth field #{field}"
@@ -348,4 +369,9 @@ defmodule ServiceHub.Providers do
   end
 
   defp parse_id(id), do: id
+
+  defp log(message) do
+    require Logger
+    Logger.info("[Providers] #{message}", ansi_color: :magenta)
+  end
 end

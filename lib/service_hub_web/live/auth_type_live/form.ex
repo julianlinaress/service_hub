@@ -16,6 +16,41 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
 
       <.form for={@form} id="auth_type-form" phx-change="validate" phx-submit="save">
         <.input field={@form[:key]} type="select" label="Auth type" options={@auth_type_options} />
+        
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-medium text-base-content">
+              Compatible Providers
+            </label>
+            <button
+              type="button"
+              phx-click="select-all-providers"
+              class="text-xs text-primary hover:underline"
+            >
+              Select All
+            </button>
+          </div>
+          <p class="text-xs text-base-content/60 mb-2">
+            Select which provider types can use this auth type.
+          </p>
+          <div class="space-y-2">
+            <label
+              :for={provider_type <- @provider_types}
+              class="flex items-center gap-2 p-2 rounded hover:bg-base-200/50 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                phx-click="toggle-provider"
+                phx-value-key={provider_type.key}
+                checked={provider_type.key in @selected_providers}
+                class="checkbox checkbox-sm"
+              />
+              <span class="text-sm">{provider_type.name} <code class="text-xs text-base-content/60">({provider_type.key})</code></span>
+            </label>
+          </div>
+          <input type="hidden" name="auth_type[compatible_providers]" value={Jason.encode!(@selected_providers)} />
+        </div>
+
         <div class="rounded border border-base-200 bg-base-200/30 p-3 text-sm">
           <p class="font-semibold mb-2">Required fields</p>
           <pre class="whitespace-pre-wrap text-xs">
@@ -36,6 +71,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
     {:ok,
      socket
      |> assign(:auth_type_options, AuthRegistry.list_options())
+     |> assign(:provider_types, Providers.list_provider_types(socket.assigns.current_scope))
      |> assign(:return_to, return_to(params["return_to"]))
      |> apply_action(socket.assigns.live_action, params)}
   end
@@ -49,6 +85,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
     socket
     |> assign(:page_title, "Edit Auth type")
     |> assign(:auth_type, auth_type)
+    |> assign(:selected_providers, auth_type.compatible_providers || [])
     |> assign(:form, to_form(Providers.change_auth_type(socket.assigns.current_scope, auth_type)))
   end
 
@@ -58,11 +95,30 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
     socket
     |> assign(:page_title, "New Auth type")
     |> assign(:auth_type, auth_type)
+    |> assign(:selected_providers, [])
     |> assign(:form, to_form(Providers.change_auth_type(socket.assigns.current_scope, auth_type)))
   end
 
   @impl true
+  def handle_event("toggle-provider", %{"key" => key}, socket) do
+    selected_providers =
+      if key in socket.assigns.selected_providers do
+        List.delete(socket.assigns.selected_providers, key)
+      else
+        [key | socket.assigns.selected_providers]
+      end
+
+    {:noreply, assign(socket, :selected_providers, selected_providers)}
+  end
+
+  def handle_event("select-all-providers", _, socket) do
+    all_keys = Enum.map(socket.assigns.provider_types, & &1.key)
+    {:noreply, assign(socket, :selected_providers, all_keys)}
+  end
+
   def handle_event("validate", %{"auth_type" => auth_type_params}, socket) do
+    auth_type_params = decode_compatible_providers(auth_type_params)
+
     changeset =
       Providers.change_auth_type(
         socket.assigns.current_scope,
@@ -74,6 +130,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
   end
 
   def handle_event("save", %{"auth_type" => auth_type_params}, socket) do
+    auth_type_params = decode_compatible_providers(auth_type_params)
     save_auth_type(socket, socket.assigns.live_action, auth_type_params)
   end
 
@@ -111,8 +168,8 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
     end
   end
 
-  defp return_path(_scope, "index", _auth_type), do: ~p"/auth_types"
-  defp return_path(_scope, "show", auth_type), do: ~p"/auth_types/#{auth_type}"
+  defp return_path(_scope, "index", _auth_type), do: ~p"/config/auth-types"
+  defp return_path(_scope, "show", auth_type), do: ~p"/config/auth-types/#{auth_type}"
 
   defp required_fields_value(form) do
     key =
@@ -125,6 +182,22 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
     case AuthRegistry.fetch(key) do
       {:ok, %{required_fields: fields}} -> Jason.encode!(fields)
       _ -> ""
+    end
+  end
+
+  defp decode_compatible_providers(params) do
+    case params do
+      %{"compatible_providers" => json} when is_binary(json) ->
+        case Jason.decode(json) do
+          {:ok, list} when is_list(list) ->
+            Map.put(params, "compatible_providers", list)
+
+          _ ->
+            Map.put(params, "compatible_providers", [])
+        end
+
+      _ ->
+        params
     end
   end
 end

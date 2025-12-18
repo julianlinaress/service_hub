@@ -18,7 +18,7 @@ defmodule ServiceHubWeb.AccountOAuthController do
       {:error, reason} ->
         conn
         |> put_flash(:error, "Cannot start OAuth: #{inspect(reason)}")
-        |> redirect(to: ~p"/providers")
+        |> redirect(to: ~p"/config/providers")
     end
   end
 
@@ -31,29 +31,29 @@ defmodule ServiceHubWeb.AccountOAuthController do
          {:ok, _} <- persist_connection(conn, "github", token_data) do
       conn
       |> put_flash(:info, "GitHub connected.")
-      |> redirect(to: ~p"/providers")
+      |> redirect(to: ~p"/config/providers")
     else
       {:error, :invalid_state} ->
         conn
         |> put_flash(:error, "Invalid OAuth state, please retry.")
-        |> redirect(to: ~p"/providers")
+        |> redirect(to: ~p"/config/providers")
 
       {:error, reason} ->
         conn
         |> put_flash(:error, "OAuth failed: #{inspect(reason)}")
-        |> redirect(to: ~p"/providers")
+        |> redirect(to: ~p"/config/providers")
 
       _ ->
         conn
         |> put_flash(:error, "OAuth failed.")
-        |> redirect(to: ~p"/providers")
+        |> redirect(to: ~p"/config/providers")
     end
   end
 
   def callback(conn, %{"provider" => "github"}) do
     conn
     |> put_flash(:error, "Missing OAuth code.")
-    |> redirect(to: ~p"/providers")
+    |> redirect(to: ~p"/config/providers")
   end
 
   defp persist_connection(conn, provider_key, token_data) do

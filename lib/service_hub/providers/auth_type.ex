@@ -8,21 +8,19 @@ defmodule ServiceHub.Providers.AuthType do
     field :name, :string
     field :key, :string
     field :required_fields, :map, default: %{}
+    field :compatible_providers, {:array, :string}, default: []
 
     timestamps(type: :utc_datetime)
   end
 
   def changeset(auth_type, attrs, _scope) do
-    attrs
-    |> then(fn normalized_attrs ->
-      auth_type
-      |> cast(normalized_attrs, [:name, :key])
-      |> validate_required([:key])
-      |> validate_change(:key, &validate_key/2)
-      |> apply_registry_defaults()
-      |> validate_required([:name])
-      |> unique_constraint(:key, name: :auth_types_key_index)
-    end)
+    auth_type
+    |> cast(attrs, [:name, :key, :compatible_providers])
+    |> validate_required([:key])
+    |> validate_change(:key, &validate_key/2)
+    |> apply_registry_defaults()
+    |> validate_required([:name])
+    |> unique_constraint(:key, name: :auth_types_key_index)
   end
 
   defp validate_key(:key, key) do
@@ -38,6 +36,15 @@ defmodule ServiceHub.Providers.AuthType do
       changeset
       |> put_change(:name, spec.name)
       |> put_change(:required_fields, spec.required_fields)
+      # Only apply registry defaults if no explicit value was provided
+      |> then(fn cs ->
+        if get_change(cs, :compatible_providers) == nil and
+             get_field(cs, :compatible_providers) == [] do
+          put_change(cs, :compatible_providers, spec[:compatible_providers] || [])
+        else
+          cs
+        end
+      end)
     else
       _ -> changeset
     end

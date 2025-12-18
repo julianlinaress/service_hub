@@ -49,22 +49,41 @@ defmodule ServiceHubWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{ServiceHubWeb.UserAuth, :require_authenticated}] do
+      # Main dashboard
+      live "/dashboard", DashboardLive, :index
+      
+      # Monitoring (placeholder for future)
+      # live "/monitoring", MonitoringLive, :index
+      
+      # Configuration section
+      live "/config/providers", ProviderLive.Index, :index
+      live "/config/providers/new", ProviderLive.Form, :new
+      live "/config/providers/:id/edit", ProviderLive.Form, :edit
+      
+      # Provider dashboard with service management
+      live "/providers/:id", ProviderLive.Dashboard, :show
+      live "/providers/:provider_id/services/new", ServiceLive.Detail, :new
+      live "/providers/:provider_id/services/:id", ServiceLive.Detail, :edit
+      
+      # Services config (placeholder for future list view)
+      # live "/config/services", ServiceLive.Index, :index
+      
+      # Clients config (placeholder for future)
+      # live "/config/clients", ClientLive.Index, :index
+      
+      # System configuration
+      live "/config/provider-types", ProviderTypeLive.Index, :index
+      live "/config/provider-types/new", ProviderTypeLive.Form, :new
+      live "/config/provider-types/:id", ProviderTypeLive.Show, :show
+      live "/config/provider-types/:id/edit", ProviderTypeLive.Form, :edit
+      live "/config/auth-types", AuthTypeLive.Index, :index
+      live "/config/auth-types/new", AuthTypeLive.Form, :new
+      live "/config/auth-types/:id", AuthTypeLive.Show, :show
+      live "/config/auth-types/:id/edit", AuthTypeLive.Form, :edit
+      
+      # User settings
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
-      live "/providers", ProviderLive.Index, :index
-      live "/providers/new", ProviderLive.Form, :new
-      live "/providers/:id/services/new", ProviderLive.Show, :new_service
-      live "/providers/:id/services/:service_id/edit", ProviderLive.Show, :edit_service
-      live "/providers/:id", ProviderLive.Show, :show
-      live "/providers/:id/edit", ProviderLive.Form, :edit
-      live "/provider_types", ProviderTypeLive.Index, :index
-      live "/provider_types/new", ProviderTypeLive.Form, :new
-      live "/provider_types/:id", ProviderTypeLive.Show, :show
-      live "/provider_types/:id/edit", ProviderTypeLive.Form, :edit
-      live "/auth_types", AuthTypeLive.Index, :index
-      live "/auth_types/new", AuthTypeLive.Form, :new
-      live "/auth_types/:id", AuthTypeLive.Show, :show
-      live "/auth_types/:id/edit", AuthTypeLive.Form, :edit
     end
 
     post "/users/update-password", UserSessionController, :update_password

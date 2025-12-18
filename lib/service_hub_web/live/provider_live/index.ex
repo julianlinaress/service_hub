@@ -39,7 +39,7 @@ defmodule ServiceHubWeb.ProviderLive.Index do
           <div class="sr-only">
             <.link navigate={~p"/providers/#{provider}"}>Show</.link>
           </div>
-          <.link navigate={~p"/providers/#{provider}/edit"}>Edit</.link>
+          <.link navigate={~p"/config/providers/#{provider}/edit"}>Edit</.link>
         </:action>
         <:action :let={{id, provider}}>
           <.link

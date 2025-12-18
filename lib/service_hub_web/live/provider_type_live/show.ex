@@ -11,12 +11,12 @@ defmodule ServiceHubWeb.ProviderTypeLive.Show do
         Provider type {@provider_type.id}
         <:subtitle>This is a provider_type record from your database.</:subtitle>
         <:actions>
-          <.button navigate={~p"/provider_types"}>
+          <.button navigate={~p"/config/provider-types"}>
             <.icon name="hero-arrow-left" />
           </.button>
           <.button
             variant="primary"
-            navigate={~p"/provider_types/#{@provider_type}/edit?return_to=show"}
+            navigate={~p"/config/provider-types/#{@provider_type}/edit?return_to=show"}
           >
             <.icon name="hero-pencil-square" /> Edit provider_type
           </.button>
@@ -61,7 +61,7 @@ defmodule ServiceHubWeb.ProviderTypeLive.Show do
     {:noreply,
      socket
      |> put_flash(:error, "The current provider_type was deleted.")
-     |> push_navigate(to: ~p"/provider_types")}
+     |> push_navigate(to: ~p"/config/provider-types")}
   end
 
   def handle_info({type, %ServiceHub.Providers.ProviderType{}}, socket)

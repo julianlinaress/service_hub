@@ -54,6 +54,11 @@
   --border: 1.5px;
   --depth: 1;
   --noise: 0;
+  /* Provider brand colors - dark theme */
+  --color-github: oklch(80% 0.02 264);
+  --color-github-content: oklch(20% 0.01 264);
+  --color-gitea: oklch(65% 0.15 155);
+  --color-gitea-content: oklch(98% 0.01 155);
 }
 
 @plugin "../vendor/daisyui-theme" {
@@ -89,6 +94,11 @@
   --border: 1.5px;
   --depth: 1;
   --noise: 0;
+  /* Provider brand colors - light theme */
+  --color-github: oklch(20% 0.01 264);
+  --color-github-content: oklch(98% 0.005 264);
+  --color-gitea: oklch(45% 0.15 155);
+  --color-gitea-content: oklch(98% 0.01 155);
 }
 
 /* Add variants based on LiveView classes */

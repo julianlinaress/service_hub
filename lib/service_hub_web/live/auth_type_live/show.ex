@@ -11,10 +11,10 @@ defmodule ServiceHubWeb.AuthTypeLive.Show do
         Auth type {@auth_type.id}
         <:subtitle>This is a auth_type record from your database.</:subtitle>
         <:actions>
-          <.button navigate={~p"/auth_types"}>
+          <.button navigate={~p"/config/auth-types"}>
             <.icon name="hero-arrow-left" />
           </.button>
-          <.button variant="primary" navigate={~p"/auth_types/#{@auth_type}/edit?return_to=show"}>
+          <.button variant="primary" navigate={~p"/config/auth-types/#{@auth_type}/edit?return_to=show"}>
             <.icon name="hero-pencil-square" /> Edit auth_type
           </.button>
         </:actions>
@@ -58,7 +58,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Show do
     {:noreply,
      socket
      |> put_flash(:error, "The current auth_type was deleted.")
-     |> push_navigate(to: ~p"/auth_types")}
+     |> push_navigate(to: ~p"/config/auth-types")}
   end
 
   def handle_info({type, %ServiceHub.Providers.AuthType{}}, socket)

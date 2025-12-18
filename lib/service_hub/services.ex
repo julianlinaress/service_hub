@@ -31,6 +31,22 @@ defmodule ServiceHub.Services do
     |> Repo.all()
   end
 
+  def list_services(%Scope{} = scope) do
+    Service
+    |> join(:inner, [s], p in assoc(s, :provider))
+    |> where([s, p], p.user_id == ^scope.user.id)
+    |> order_by([s], asc: s.name)
+    |> Repo.all()
+  end
+
+  def count_services_for_provider(%Scope{} = scope, provider_id) do
+    Service
+    |> join(:inner, [s], p in assoc(s, :provider))
+    |> where([s, p], s.provider_id == ^provider_id and p.user_id == ^scope.user.id)
+    |> select([s], count(s.id))
+    |> Repo.one() || 0
+  end
+
   def get_service!(%Scope{} = scope, id) do
     Service
     |> join(:inner, [s], p in assoc(s, :provider))

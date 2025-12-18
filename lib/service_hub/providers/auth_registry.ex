@@ -7,6 +7,7 @@ defmodule ServiceHub.Providers.AuthRegistry do
     "token" => %{
       key: "token",
       name: "Auth token",
+      compatible_providers: ["gitea"],
       required_fields: %{
         "token" => %{
           "label" => "Access token",
@@ -17,6 +18,7 @@ defmodule ServiceHub.Providers.AuthRegistry do
     "github_pat" => %{
       key: "github_pat",
       name: "GitHub personal access token",
+      compatible_providers: ["github"],
       required_fields: %{
         "token" => %{
           "label" => "GitHub token (classic or fine-grained)",
@@ -27,6 +29,7 @@ defmodule ServiceHub.Providers.AuthRegistry do
     "github_app" => %{
       key: "github_app",
       name: "GitHub App installation",
+      compatible_providers: ["github"],
       required_fields: %{
         "app_id" => %{"label" => "App ID", "type" => "text"},
         "installation_id" => %{"label" => "Installation ID", "type" => "text"},
@@ -39,6 +42,7 @@ defmodule ServiceHub.Providers.AuthRegistry do
     "github_oauth" => %{
       key: "github_oauth",
       name: "GitHub OAuth (3-legged)",
+      compatible_providers: ["github"],
       required_fields: %{
         "client_id" => %{"label" => "Client ID", "type" => "text"},
         "client_secret" => %{"label" => "Client secret", "type" => "password"},
@@ -48,6 +52,7 @@ defmodule ServiceHub.Providers.AuthRegistry do
     "oauth" => %{
       key: "oauth",
       name: "Generic OAuth",
+      compatible_providers: [],
       required_fields: %{
         "client_id" => %{"label" => "Client ID", "type" => "text"},
         "client_secret" => %{"label" => "Client secret", "type" => "password"},

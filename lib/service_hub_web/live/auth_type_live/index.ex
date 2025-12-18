@@ -10,7 +10,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Index do
       <.header>
         Listing Auth types
         <:actions>
-          <.button variant="primary" navigate={~p"/auth_types/new"}>
+          <.button variant="primary" navigate={~p"/config/auth-types/new"}>
             <.icon name="hero-plus" /> New Auth type
           </.button>
         </:actions>
@@ -19,7 +19,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Index do
       <.table
         id="auth_types"
         rows={@streams.auth_types}
-        row_click={fn {_id, auth_type} -> JS.navigate(~p"/auth_types/#{auth_type}") end}
+        row_click={fn {_id, auth_type} -> JS.navigate(~p"/config/auth-types/#{auth_type}") end}
       >
         <:col :let={{_id, auth_type}} label="Name">{auth_type.name}</:col>
         <:col :let={{_id, auth_type}} label="Key">{auth_type.key}</:col>
@@ -28,9 +28,9 @@ defmodule ServiceHubWeb.AuthTypeLive.Index do
         </:col>
         <:action :let={{_id, auth_type}}>
           <div class="sr-only">
-            <.link navigate={~p"/auth_types/#{auth_type}"}>Show</.link>
+            <.link navigate={~p"/config/auth-types/#{auth_type}"}>Show</.link>
           </div>
-          <.link navigate={~p"/auth_types/#{auth_type}/edit"}>Edit</.link>
+          <.link navigate={~p"/config/auth-types/#{auth_type}/edit"}>Edit</.link>
         </:action>
         <:action :let={{id, auth_type}}>
           <.link

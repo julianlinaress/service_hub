@@ -13,7 +13,7 @@ defmodule ServiceHubWeb.ProviderLive.Show do
         Provider {@provider.name}
         <:subtitle>Manage the provider and its services.</:subtitle>
         <:actions>
-          <.button navigate={~p"/providers"}>
+          <.button navigate={~p"/config/providers"}>
             <.icon name="hero-arrow-left" />
           </.button>
           <.button variant="primary" navigate={~p"/providers/#{@provider}/edit?return_to=show"}>
@@ -280,7 +280,7 @@ defmodule ServiceHubWeb.ProviderLive.Show do
     {:noreply,
      socket
      |> put_flash(:error, "The current provider was deleted.")
-     |> push_navigate(to: ~p"/providers")}
+     |> push_navigate(to: ~p"/config/providers")}
   end
 
   def handle_info({type, %ServiceHub.Providers.Provider{}}, socket)

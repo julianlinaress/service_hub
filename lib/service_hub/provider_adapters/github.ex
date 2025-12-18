@@ -5,9 +5,15 @@ defmodule ServiceHub.ProviderAdapters.GitHub do
 
   @behaviour ServiceHub.ProviderAdapters.Behaviour
 
+  require Logger
+
   alias ServiceHub.Providers.Provider
 
   @api_version "2022-11-28"
+
+  defp log(message, metadata \\ []) do
+    Logger.info("[GitHub Adapter] #{message}", Keyword.merge(metadata, ansi_color: :yellow))
+  end
 
   @impl true
   def validate_connection(%Provider{} = provider) do
@@ -96,15 +102,9 @@ defmodule ServiceHub.ProviderAdapters.GitHub do
   end
 
   defp list_user_repositories(%Provider{} = provider) do
-    user_repos = paginate_user_repositories(provider, 1, [])
-    org_repos = list_org_admin_repositories(provider)
-
-    with {:ok, user_repos} <- user_repos,
-         {:ok, org_repos} <- org_repos do
-      {:ok, uniq_repositories(user_repos ++ org_repos)}
-    else
-      {:error, reason} -> {:error, reason}
-    end
+    # /user/repos with affiliation=owner,collaborator,organization_member
+    # includes ALL repos user has access to, including org repos
+    paginate_user_repositories(provider, 1, [])
   end
 
   defp paginate_user_repositories(provider, page, acc) do
@@ -143,64 +143,17 @@ defmodule ServiceHub.ProviderAdapters.GitHub do
   end
 
   defp list_org_admin_repositories(provider) do
-    case paginate_org_memberships(provider, 1, []) do
+    # Use /user/orgs directly - it lists all orgs where user is owner or member
+    # Then filter by repos where we have admin/push permissions
+    case paginate_user_orgs(provider, 1, []) do
       {:ok, orgs} ->
         orgs
         |> Enum.flat_map(&org_repositories(provider, &1))
         |> uniq_repositories()
         |> wrap_ok()
 
-      {:error, :forbidden} ->
-        case paginate_user_orgs(provider, 1, []) do
-          {:ok, orgs} ->
-            orgs
-            |> Enum.flat_map(&org_repositories(provider, &1))
-            |> uniq_repositories()
-            |> wrap_ok()
-
-          {:error, :unauthorized} ->
-            {:error, :unauthorized}
-
-          {:error, reason} ->
-            {:ok, []} |> maybe_error(reason)
-        end
-
       {:error, :unauthorized} ->
         {:error, :unauthorized}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp paginate_org_memberships(provider, page, acc) do
-    params = %{per_page: 100, page: page, state: "active"}
-
-    case request(provider, :get, "/user/memberships/orgs", params: params) do
-      {:ok, %{status: 200, body: orgs}} when is_list(orgs) ->
-        admin_orgs =
-          Enum.filter(orgs, fn org ->
-            role = Map.get(org, "role") || Map.get(org, :role)
-            state = Map.get(org, "state") || Map.get(org, :state)
-            role in ["admin", :admin] and state in ["active", :active]
-          end)
-
-        merged = acc ++ Enum.map(admin_orgs, &normalize_org/1)
-
-        if length(orgs) < params.per_page do
-          {:ok, merged}
-        else
-          paginate_org_memberships(provider, page + 1, merged)
-        end
-
-      {:ok, %{status: 401}} ->
-        {:error, :unauthorized}
-
-      {:ok, %{status: 403}} ->
-        {:error, :forbidden}
-
-      {:ok, %{status: status}} ->
-        {:error, {:unexpected_status, status}}
 
       {:error, reason} ->
         {:error, reason}
@@ -435,7 +388,7 @@ defmodule ServiceHub.ProviderAdapters.GitHub do
   end
 
   @impl true
-  def default_oauth_scope, do: "repo read:user"
+  def default_oauth_scope, do: "repo read:user read:org"
 
   @impl true
   def authorize_url(%Provider{} = provider, redirect_uri, state) do
