@@ -91,14 +91,17 @@ defmodule ServiceHubWeb.Layouts.Sidebar do
           <div class="flex items-center gap-3">
             <div class="avatar placeholder">
               <div class="bg-neutral text-neutral-content rounded-full w-10">
-                <span class="text-sm"><%= user_initials(@current_scope.user) %></span>
+                <span class="text-sm">{user_initials(@current_scope.user)}</span>
               </div>
             </div>
             <div class="flex-1 min-w-0">
               <div class="text-sm font-medium truncate">
-                <%= @current_scope.user.email %>
+                {@current_scope.user.email}
               </div>
-              <.link href="/users/settings" class="text-xs text-base-content/60 hover:text-base-content">
+              <.link
+                href="/users/settings"
+                class="text-xs text-base-content/60 hover:text-base-content"
+              >
                 Settings
               </.link>
             </div>
@@ -135,7 +138,7 @@ defmodule ServiceHubWeb.Layouts.Sidebar do
       ]}
     >
       <.icon name={@icon} class="w-5 h-5" />
-      <span><%= @label %></span>
+      <span>{@label}</span>
     </.link>
     """
   end

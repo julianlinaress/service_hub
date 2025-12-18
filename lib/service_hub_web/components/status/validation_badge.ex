@@ -35,7 +35,7 @@ defmodule ServiceHubWeb.Components.Status.ValidationBadge do
       >
         <circle cx="4" cy="4" r="3" />
       </svg>
-      <span><%= label(@status) %></span>
+      <span>{label(@status)}</span>
     </span>
     """
   end

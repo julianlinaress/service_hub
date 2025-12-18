@@ -10,25 +10,30 @@ defmodule ServiceHub.ProviderAdapters.Gitea do
   @impl true
   def validate_connection(%Provider{} = provider) do
     log("Validating connection to #{provider.base_url}")
-    
-    result = case get(provider, "/api/v1/user") do
-      {:ok, %{status: 200}} -> 
-        log("Connection successful (200)")
-        :ok
-      {:ok, %{status: 401}} -> 
-        log("Connection failed: unauthorized (401)")
-        {:error, :unauthorized}
-      {:ok, %{status: 404}} -> 
-        log("Connection failed: not found (404)")
-        {:error, :not_found}
-      {:ok, %{status: status}} -> 
-        log("Connection failed: unexpected status #{status}")
-        {:error, {:unexpected_status, status}}
-      {:error, reason} -> 
-        log("Connection failed: #{inspect(reason)}")
-        {:error, reason}
-    end
-    
+
+    result =
+      case get(provider, "/api/v1/user") do
+        {:ok, %{status: 200}} ->
+          log("Connection successful (200)")
+          :ok
+
+        {:ok, %{status: 401}} ->
+          log("Connection failed: unauthorized (401)")
+          {:error, :unauthorized}
+
+        {:ok, %{status: 404}} ->
+          log("Connection failed: not found (404)")
+          {:error, :not_found}
+
+        {:ok, %{status: status}} ->
+          log("Connection failed: unexpected status #{status}")
+          {:error, {:unexpected_status, status}}
+
+        {:error, reason} ->
+          log("Connection failed: #{inspect(reason)}")
+          {:error, reason}
+      end
+
     log("validate_connection returning: #{inspect(result)}")
     result
   end

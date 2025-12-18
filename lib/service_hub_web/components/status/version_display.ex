@@ -26,10 +26,10 @@ defmodule ServiceHubWeb.Components.Status.VersionDisplay do
         text_size(@size),
         if(@version, do: "text-base-content", else: "text-base-content/40")
       ]}>
-        <%= @version || "No version" %>
+        {@version || "No version"}
       </code>
       <div :if={@checked_at} class={["text-base-content/60", meta_size(@size)]}>
-        Checked <%= relative_time(@checked_at) %>
+        Checked {relative_time(@checked_at)}
       </div>
     </div>
     """

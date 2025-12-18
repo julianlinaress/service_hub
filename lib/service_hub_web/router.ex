@@ -51,26 +51,26 @@ defmodule ServiceHubWeb.Router do
       on_mount: [{ServiceHubWeb.UserAuth, :require_authenticated}] do
       # Main dashboard
       live "/dashboard", DashboardLive, :index
-      
+
       # Monitoring (placeholder for future)
       # live "/monitoring", MonitoringLive, :index
-      
+
       # Configuration section
       live "/config/providers", ProviderLive.Index, :index
       live "/config/providers/new", ProviderLive.Form, :new
       live "/config/providers/:id/edit", ProviderLive.Form, :edit
-      
+
       # Provider dashboard with service management
       live "/providers/:id", ProviderLive.Dashboard, :show
       live "/providers/:provider_id/services/new", ServiceLive.Detail, :new
       live "/providers/:provider_id/services/:id", ServiceLive.Detail, :edit
-      
+
       # Services config (placeholder for future list view)
       # live "/config/services", ServiceLive.Index, :index
-      
+
       # Clients config (placeholder for future)
       # live "/config/clients", ClientLive.Index, :index
-      
+
       # System configuration
       live "/config/provider-types", ProviderTypeLive.Index, :index
       live "/config/provider-types/new", ProviderTypeLive.Form, :new
@@ -80,7 +80,7 @@ defmodule ServiceHubWeb.Router do
       live "/config/auth-types/new", AuthTypeLive.Form, :new
       live "/config/auth-types/:id", AuthTypeLive.Show, :show
       live "/config/auth-types/:id/edit", AuthTypeLive.Form, :edit
-      
+
       # User settings
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email

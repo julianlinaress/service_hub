@@ -92,6 +92,7 @@ defmodule ServiceHub.Providers do
       case validation_result do
         :ok ->
           log("Validation successful, updating status to 'ok'")
+
           %{
             last_validation_status: "ok",
             last_validation_error: nil,
@@ -101,6 +102,7 @@ defmodule ServiceHub.Providers do
         {:error, reason} ->
           error_msg = format_validation_error(reason)
           log("Validation failed: #{inspect(reason)} -> #{error_msg}")
+
           %{
             last_validation_status: "error",
             last_validation_error: error_msg,
@@ -116,11 +118,12 @@ defmodule ServiceHub.Providers do
       log("Provider updated in DB, broadcasting update")
       broadcast_provider(scope, {:updated, provider})
 
-      result = case validation_result do
-        :ok -> {:ok, provider}
-        {:error, reason} -> {:error, reason}
-      end
-      
+      result =
+        case validation_result do
+          :ok -> {:ok, provider}
+          {:error, reason} -> {:error, reason}
+        end
+
       log("Returning: #{inspect(result |> elem(0))}")
       result
     end

@@ -28,11 +28,11 @@ defmodule ServiceHubWeb.Components.ProviderIcon do
         bg_class(@type)
       ]}>
         <svg class={icon_size(@size)} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <%= Phoenix.HTML.raw(icon_path(@type)) %>
+          {Phoenix.HTML.raw(icon_path(@type))}
         </svg>
       </div>
       <span :if={@with_label} class={["font-medium", label_size(@size)]}>
-        <%= label(@type) %>
+        {label(@type)}
       </span>
     </div>
     """

@@ -46,7 +46,7 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
           <%!-- Service details --%>
           <div class="grid gap-4 md:grid-cols-2">
             <.input field={@form[:name]} type="text" label="Display name" />
-            
+
             <%!-- Branch selector --%>
             <div>
               <.async_result :let={branches} assign={@branch_async}>
@@ -59,7 +59,12 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
                   </div>
                 </:loading>
                 <:failed :let={_reason}>
-                  <.input field={@form[:default_ref]} type="text" label="Default branch" placeholder="main" />
+                  <.input
+                    field={@form[:default_ref]}
+                    type="text"
+                    label="Default branch"
+                    placeholder="main"
+                  />
                 </:failed>
                 <.input
                   field={@form[:default_ref]}
@@ -161,18 +166,25 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
 
   def handle_async({:branches, repo_full}, {:ok, {:error, reason}}, socket) do
     if socket.assigns[:branch_repo_ref] == repo_full do
-      {:noreply, assign(socket, :branch_async, AsyncResult.failed(socket.assigns.branch_async, reason))}
+      {:noreply,
+       assign(socket, :branch_async, AsyncResult.failed(socket.assigns.branch_async, reason))}
     else
       {:noreply, socket}
     end
   end
 
   def handle_async({:branches, _repo_full}, {:exit, reason}, socket) do
-    {:noreply, assign(socket, :branch_async, AsyncResult.failed(socket.assigns.branch_async, {:exit, reason}))}
+    {:noreply,
+     assign(
+       socket,
+       :branch_async,
+       AsyncResult.failed(socket.assigns.branch_async, {:exit, reason})
+     )}
   end
 
   def handle_async({:branches, _repo_full}, _, socket) do
-    {:noreply, assign(socket, :branch_async, AsyncResult.failed(socket.assigns.branch_async, :unknown))}
+    {:noreply,
+     assign(socket, :branch_async, AsyncResult.failed(socket.assigns.branch_async, :unknown))}
   end
 
   defp save_service(socket, action, params) when action in [:new, :new_service] do
@@ -232,10 +244,6 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
     |> normalize_repo_params()
     |> then(&Services.change_service(scope, service, &1))
     |> maybe_set_repo_full_name(service)
-    |> case do
-      %Ecto.Changeset{} = cs -> cs
-      other -> other
-    end
   end
 
   defp ensure_repo_async_started(socket) do
@@ -255,7 +263,7 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
   defp ensure_branch_async(socket, changeset) do
     repo_full = Ecto.Changeset.get_field(changeset, :repo_full_name)
     current_ref = socket.assigns[:branch_repo_ref]
-    
+
     cond do
       is_nil(repo_full) ->
         socket
@@ -267,13 +275,14 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
 
       true ->
         {owner, repo} = parse_full_name(repo_full)
-        
+
         if is_nil(owner) or is_nil(repo) do
           socket
           |> assign(:branch_repo_ref, repo_full)
           |> assign(:branch_async, AsyncResult.ok([]))
         else
           provider = socket.assigns.provider
+
           socket
           |> assign(:branch_repo_ref, repo_full)
           |> assign(:branch_async, AsyncResult.loading())

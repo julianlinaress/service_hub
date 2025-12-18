@@ -14,7 +14,10 @@ defmodule ServiceHubWeb.AuthTypeLive.Show do
           <.button navigate={~p"/config/auth-types"}>
             <.icon name="hero-arrow-left" />
           </.button>
-          <.button variant="primary" navigate={~p"/config/auth-types/#{@auth_type}/edit?return_to=show"}>
+          <.button
+            variant="primary"
+            navigate={~p"/config/auth-types/#{@auth_type}/edit?return_to=show"}
+          >
             <.icon name="hero-pencil-square" /> Edit auth_type
           </.button>
         </:actions>

@@ -23,8 +23,7 @@ defmodule ServiceHubWeb.DashboardLive do
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold">Providers</h2>
             <.link navigate={~p"/config/providers/new"} class="btn btn-ghost btn-sm">
-              <.icon name="hero-plus" class="w-4 h-4" />
-              New
+              <.icon name="hero-plus" class="w-4 h-4" /> New
             </.link>
           </div>
 
@@ -32,7 +31,10 @@ defmodule ServiceHubWeb.DashboardLive do
             No providers configured
           </div>
 
-          <div :if={!Enum.empty?(@providers)} class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div
+            :if={!Enum.empty?(@providers)}
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+          >
             <.provider_card :for={provider <- @providers} provider={provider} />
           </div>
         </div>
@@ -42,12 +44,14 @@ defmodule ServiceHubWeb.DashboardLive do
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold">Recent Health Checks</h2>
             <.link navigate={~p"/monitoring"} class="btn btn-ghost btn-sm">
-              View all
-              <.icon name="hero-arrow-right" class="w-4 h-4" />
+              View all <.icon name="hero-arrow-right" class="w-4 h-4" />
             </.link>
           </div>
 
-          <div :if={Enum.empty?(@recent_installations)} class="text-center py-8 text-sm text-base-content/50">
+          <div
+            :if={Enum.empty?(@recent_installations)}
+            class="text-center py-8 text-sm text-base-content/50"
+          >
             No service installations yet
           </div>
 
@@ -91,7 +95,10 @@ defmodule ServiceHubWeb.DashboardLive do
           <div class="text-sm text-base-content/50 truncate">{@provider.base_url}</div>
         </div>
       </div>
-      <.icon name="hero-chevron-right" class="w-5 h-5 text-base-content/30 group-hover:text-base-content/60 transition-colors flex-shrink-0" />
+      <.icon
+        name="hero-chevron-right"
+        class="w-5 h-5 text-base-content/30 group-hover:text-base-content/60 transition-colors flex-shrink-0"
+      />
     </.link>
     """
   end
@@ -157,6 +164,4 @@ defmodule ServiceHubWeb.DashboardLive do
       "unknown"
     end
   end
-
-
 end

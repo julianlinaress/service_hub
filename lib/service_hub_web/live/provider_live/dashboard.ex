@@ -34,12 +34,10 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
               variant="ghost"
               phx-disable-with="Validating..."
             >
-              <.icon name="hero-arrow-path" class="w-4 h-4" />
-              Validate
+              <.icon name="hero-arrow-path" class="w-4 h-4" /> Validate
             </.button>
             <.button navigate={~p"/config/providers/#{@provider}/edit"} variant="ghost">
-              <.icon name="hero-cog-6-tooth" class="w-4 h-4" />
-              Settings
+              <.icon name="hero-cog-6-tooth" class="w-4 h-4" /> Settings
             </.button>
           </div>
         </div>
@@ -53,8 +51,7 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
               variant="ghost"
               size="sm"
             >
-              <.icon name="hero-plus" class="w-4 h-4" />
-              New
+              <.icon name="hero-plus" class="w-4 h-4" /> New
             </.button>
           </div>
 
@@ -92,7 +89,10 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
           </div>
         </div>
       </div>
-      <.icon name="hero-chevron-right" class="w-5 h-5 text-base-content/30 group-hover:text-base-content/60 transition-colors flex-shrink-0" />
+      <.icon
+        name="hero-chevron-right"
+        class="w-5 h-5 text-base-content/30 group-hover:text-base-content/60 transition-colors flex-shrink-0"
+      />
     </.link>
     """
   end
@@ -116,7 +116,10 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
 
   @impl true
   def handle_event("validate-connection", _params, socket) do
-    case Providers.validate_provider_connection(socket.assigns.current_scope, socket.assigns.provider) do
+    case Providers.validate_provider_connection(
+           socket.assigns.current_scope,
+           socket.assigns.provider
+         ) do
       {:ok, updated_provider} ->
         {:noreply,
          socket
@@ -131,7 +134,9 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
   @impl true
   def handle_info({:service_created, service}, socket) do
     if service.provider_id == socket.assigns.provider.id do
-      services = Services.list_services_for_provider(socket.assigns.current_scope, socket.assigns.provider)
+      services =
+        Services.list_services_for_provider(socket.assigns.current_scope, socket.assigns.provider)
+
       {:noreply, assign(socket, :services, services)}
     else
       {:noreply, socket}

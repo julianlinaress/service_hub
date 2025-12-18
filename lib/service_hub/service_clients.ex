@@ -12,7 +12,8 @@ defmodule ServiceHub.ServiceClients do
   Lists all service clients for a given set of service IDs.
   Returns service_clients with preloaded client associations.
   """
-  def list_service_clients_for_services(%Scope{} = scope, service_ids) when is_list(service_ids) do
+  def list_service_clients_for_services(%Scope{} = scope, service_ids)
+      when is_list(service_ids) do
     from(sc in ServiceClient,
       join: s in assoc(sc, :service),
       join: p in assoc(s, :provider),

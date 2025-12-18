@@ -119,7 +119,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
               <p class="text-xs text-base-content/70 mb-3">
                 Generate a Gitea access token using your Gitea username (not email) and password
               </p>
-              
+
               <div class="space-y-3">
                 <div>
                   <label class="block text-sm font-medium mb-1">Gitea Username</label>
@@ -146,8 +146,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
                   phx-click="generate-gitea-token"
                   phx-disable-with="Generating..."
                 >
-                  <.icon name="hero-key" class="h-4 w-4" />
-                  Generate Token
+                  <.icon name="hero-key" class="h-4 w-4" /> Generate Token
                 </.button>
                 <p :if={@gitea_token_generated} class="text-xs text-success">
                   Token generated and applied to auth data
@@ -324,7 +323,10 @@ defmodule ServiceHubWeb.ProviderLive.Form do
               </div>
 
               <%!-- Delete Warning --%>
-              <div :if={@danger_action == :delete} class="bg-error/10 border border-error/30 rounded p-3">
+              <div
+                :if={@danger_action == :delete}
+                class="bg-error/10 border border-error/30 rounded p-3"
+              >
                 <p class="text-sm text-error font-medium">
                   This action cannot be undone. All services, connections, and data will be permanently lost.
                 </p>
@@ -468,6 +470,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   def handle_event("generate-gitea-token", _params, socket) do
     username = socket.assigns.gitea_username
     password = socket.assigns.gitea_password
+
     cond do
       String.trim(username) == "" or String.trim(password) == "" ->
         {:noreply,
@@ -517,7 +520,10 @@ defmodule ServiceHubWeb.ProviderLive.Form do
             {:noreply,
              socket
              |> assign(:gitea_token_generated, false)
-             |> assign(:gitea_token_error, "User not found. Use your Gitea username, not email. (#{message})")}
+             |> assign(
+               :gitea_token_error,
+               "User not found. Use your Gitea username, not email. (#{message})"
+             )}
 
           {:error, reason} ->
             {:noreply,
@@ -544,7 +550,10 @@ defmodule ServiceHubWeb.ProviderLive.Form do
        :danger_modal_message,
        "Select the new provider type. This may break existing services that depend on this provider."
      )
-     |> assign(:danger_form, to_form(%{"provider_type_id" => socket.assigns.provider.provider_type_id}))}
+     |> assign(
+       :danger_form,
+       to_form(%{"provider_type_id" => socket.assigns.provider.provider_type_id})
+     )}
   end
 
   def handle_event("confirm-change-url", _, socket) do
@@ -591,9 +600,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
          socket
          |> assign(:provider, provider)
          |> assign(:show_danger_modal, false)
-         |> assign_form(
-           Providers.change_provider(socket.assigns.current_scope, provider)
-         )
+         |> assign_form(Providers.change_provider(socket.assigns.current_scope, provider))
          |> put_flash(:info, "Provider type updated successfully")}
 
       {:error, changeset} ->
@@ -616,9 +623,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
          socket
          |> assign(:provider, provider)
          |> assign(:show_danger_modal, false)
-         |> assign_form(
-           Providers.change_provider(socket.assigns.current_scope, provider)
-         )
+         |> assign_form(Providers.change_provider(socket.assigns.current_scope, provider))
          |> put_flash(:info, "Base URL updated successfully")}
 
       {:error, changeset} ->
@@ -836,7 +841,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
   defp danger_confirm_text(:change_url), do: "Yes, I Understand"
   defp danger_confirm_text(_), do: "Confirm"
 
-  defp filter_auth_types(auth_types, nil), do: []
+  defp filter_auth_types(_auth_types, nil), do: []
 
   defp filter_auth_types(auth_types, provider_key) do
     provider_key_lower = String.downcase(provider_key)

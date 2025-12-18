@@ -39,7 +39,7 @@ defmodule ServiceHubWeb.Layouts do
       <%!-- Dashboard layout with sidebar --%>
       <div class="drawer lg:drawer-open">
         <input id="main-drawer" type="checkbox" class="drawer-toggle" />
-        
+
         <div class="drawer-content flex flex-col">
           <%!-- Top navbar --%>
           <header class="navbar bg-base-100 border-b border-base-300 px-4 sticky top-0 z-30">
@@ -65,7 +65,7 @@ defmodule ServiceHubWeb.Layouts do
         </div>
 
         <%!-- Sidebar --%>
-        <Layouts.Sidebar.sidebar 
+        <Layouts.Sidebar.sidebar
           current_scope={@current_scope}
           current_path={get_current_path(assigns)}
         />
@@ -115,6 +115,7 @@ defmodule ServiceHubWeb.Layouts do
     case assigns do
       %{socket: %{view: view}} when not is_nil(view) ->
         view_to_path(view)
+
       _ ->
         "/dashboard"
     end

@@ -16,7 +16,7 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
 
       <.form for={@form} id="auth_type-form" phx-change="validate" phx-submit="save">
         <.input field={@form[:key]} type="select" label="Auth type" options={@auth_type_options} />
-        
+
         <div>
           <div class="flex items-center justify-between mb-2">
             <label class="block text-sm font-medium text-base-content">
@@ -45,10 +45,17 @@ defmodule ServiceHubWeb.AuthTypeLive.Form do
                 checked={provider_type.key in @selected_providers}
                 class="checkbox checkbox-sm"
               />
-              <span class="text-sm">{provider_type.name} <code class="text-xs text-base-content/60">({provider_type.key})</code></span>
+              <span class="text-sm">
+                {provider_type.name}
+                <code class="text-xs text-base-content/60">({provider_type.key})</code>
+              </span>
             </label>
           </div>
-          <input type="hidden" name="auth_type[compatible_providers]" value={Jason.encode!(@selected_providers)} />
+          <input
+            type="hidden"
+            name="auth_type[compatible_providers]"
+            value={Jason.encode!(@selected_providers)}
+          />
         </div>
 
         <div class="rounded border border-base-200 bg-base-200/30 p-3 text-sm">

@@ -112,9 +112,4 @@ defmodule ServiceHubWeb.ProviderTypeLive.Index do
   defp list_provider_types(current_scope) do
     Providers.list_provider_types(current_scope)
   end
-
-  defp format_fields(fields) when is_map(fields) and map_size(fields) > 0,
-    do: Jason.encode!(fields)
-
-  defp format_fields(_), do: ""
 end
