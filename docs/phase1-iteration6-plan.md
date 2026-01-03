@@ -44,6 +44,10 @@
 - Template interpolation: assume simple `{{host}}` replacement; explicitly strip protocol from host if users include it?
 - Backfill strategy: only run when legacy tables exist; otherwise skip without failing.
 
+### Newly agreed behaviors
+- Health checks are mandatory for every deployment but expectation rules are configurable (e.g., require 200-only or a specific JSON shape).
+- Version checks are optional per deployment; when enabled they can carry per-deployment expectations for parsing/validation.
+
 ## Testing Plan
 - ExUnit coverage for context changesets/queries and check modules (ok/warning/down/error cases; JSON vs plain text versions).
 - LiveView tests for deployment CRUD and manual triggers (button events update assigns and flash messages).
