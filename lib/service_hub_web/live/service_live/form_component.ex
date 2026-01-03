@@ -8,7 +8,7 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
+    <div class="max-w-2xl">
       <.form
         for={@form}
         id="service-form"
@@ -17,80 +17,91 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
         phx-submit="save"
       >
         <div class="space-y-6">
-          <%!-- Repository --%>
-          <div>
+          <%!-- Repository Selection Card --%>
+          <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+            <h3 class="text-sm font-semibold text-base-content/70 mb-4">Repository</h3>
             <.async_result :let={repos} assign={@repo_async}>
               <:loading>
-                <div class="fieldset mb-2">
+                <div class="fieldset">
                   <label>
-                    <span class="label mb-1">Repository</span>
-                    <div class="skeleton h-10 w-full"></div>
+                    <span class="label mb-1">Select repository</span>
+                    <div class="skeleton h-10 w-full rounded"></div>
                   </label>
                 </div>
               </:loading>
               <:failed :let={reason}>
-                <div class="text-sm text-error">
+                <div class="text-sm text-error bg-error/10 rounded p-3">
+                  <.icon name="hero-exclamation-circle" class="w-4 h-4 inline mr-1" />
                   Failed to load repositories: {format_repo_error(reason)}
                 </div>
               </:failed>
               <.input
                 field={@form[:repo_full_name]}
                 type="select"
-                label="Repository"
+                label="Select repository"
                 options={repo_options(repos)}
-                prompt="Select a repository"
+                prompt="Choose a repository..."
               />
             </.async_result>
           </div>
 
-          <%!-- Service details --%>
-          <div class="grid gap-4 md:grid-cols-2">
-            <.input field={@form[:name]} type="text" label="Display name" />
+          <%!-- Service Details Card --%>
+          <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+            <h3 class="text-sm font-semibold text-base-content/70 mb-4">Service Details</h3>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <.input field={@form[:name]} type="text" label="Display name" />
 
-            <%!-- Branch selector --%>
-            <div>
-              <.async_result :let={branches} assign={@branch_async}>
-                <:loading>
-                  <div class="fieldset mb-2">
-                    <label>
-                      <span class="label mb-1">Default branch</span>
-                      <div class="skeleton h-10 w-full"></div>
-                    </label>
-                  </div>
-                </:loading>
-                <:failed :let={_reason}>
+              <%!-- Branch selector --%>
+              <div>
+                <.async_result :let={branches} assign={@branch_async}>
+                  <:loading>
+                    <div class="fieldset">
+                      <label>
+                        <span class="label mb-1">Default branch</span>
+                        <div class="skeleton h-10 w-full rounded"></div>
+                      </label>
+                    </div>
+                  </:loading>
+                  <:failed :let={_reason}>
+                    <.input
+                      field={@form[:default_ref]}
+                      type="text"
+                      label="Default branch"
+                      placeholder="main"
+                    />
+                  </:failed>
                   <.input
                     field={@form[:default_ref]}
-                    type="text"
+                    type="select"
                     label="Default branch"
-                    placeholder="main"
+                    options={branch_options(branches)}
+                    prompt="Select a branch"
                   />
-                </:failed>
-                <.input
-                  field={@form[:default_ref]}
-                  type="select"
-                  label="Default branch"
-                  options={branch_options(branches)}
-                  prompt="Select a branch"
-                />
-              </.async_result>
+                </.async_result>
+              </div>
             </div>
           </div>
 
-          <%!-- Endpoints --%>
-          <div class="grid gap-4 md:grid-cols-2">
-            <.input
-              field={@form[:version_endpoint_template]}
-              type="text"
-              label="Version endpoint"
-              placeholder="https://{{host}}/api/version"
-            />
-            <.input
-              field={@form[:healthcheck_endpoint_template]}
-              type="text"
-              label="Health endpoint"
-              placeholder="https://{{host}}/api/health"
-            />
+          <%!-- Endpoints Card --%>
+          <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+            <h3 class="text-sm font-semibold text-base-content/70 mb-1">Endpoints</h3>
+            <p class="text-xs text-base-content/50 mb-4">
+              Use {"{{host}}"} as a placeholder for the client's hostname
+            </p>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <.input
+                field={@form[:version_endpoint_template]}
+                type="text"
+                label="Version endpoint"
+                placeholder="https://{{host}}/api/version"
+              />
+              <.input
+                field={@form[:healthcheck_endpoint_template]}
+                type="text"
+                label="Health endpoint"
+                placeholder="https://{{host}}/api/health"
+              />
+            </div>
           </div>
         </div>
 

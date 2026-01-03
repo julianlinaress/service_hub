@@ -15,58 +15,73 @@ defmodule ServiceHubWeb.ProviderLive.Form do
         <:subtitle>Use this form to manage provider records in your database.</:subtitle>
       </.header>
       <.form for={@form} id="provider-form" phx-change="validate" phx-submit="save">
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div class="space-y-4">
-            <.input field={@form[:name]} type="text" label="Name" />
-            <.input
-              field={@form[:provider_type_id]}
-              type="select"
-              label="Provider type"
-              prompt="Select provider type"
-              options={Enum.map(@provider_types, &{&1.name, &1.id})}
-              disabled={@live_action == :edit}
-            />
-            <.input
-              field={@form[:base_url]}
-              type="text"
-              label="Base URL"
-              placeholder="https://api.github.com"
-              disabled={@live_action == :edit}
-            />
-            <div :if={String.downcase(@provider_key || "") == "github"} class="space-y-1">
-              <p class="text-xs text-base-content/70">
-                GitHub host helper (API base): github.com o tu instancia Enterprise.
-              </p>
-              <div class="flex flex-wrap gap-2">
-                <.button
-                  type="button"
-                  phx-click="preset-base-url"
-                  phx-value-url="https://api.github.com"
-                >
-                  Use github.com API
-                </.button>
-                <.button type="button" phx-click="preset-base-url" phx-value-url="">
-                  Clear URL
-                </.button>
+        <div class="max-w-4xl grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <%!-- Left Column: Basic Settings --%>
+          <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+            <h3 class="text-sm font-semibold text-base-content/70 mb-4">Basic Settings</h3>
+            <div class="space-y-4">
+              <.input field={@form[:name]} type="text" label="Name" />
+              <.input
+                field={@form[:provider_type_id]}
+                type="select"
+                label="Provider type"
+                prompt="Select provider type"
+                options={Enum.map(@provider_types, &{&1.name, &1.id})}
+                disabled={@live_action == :edit}
+              />
+              <.input
+                field={@form[:base_url]}
+                type="text"
+                label="Base URL"
+                placeholder="https://api.github.com"
+                disabled={@live_action == :edit}
+              />
+              <div :if={String.downcase(@provider_key || "") == "github"} class="space-y-2">
+                <p class="text-xs text-base-content/60">
+                  GitHub host helper (API base): github.com o tu instancia Enterprise.
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <.button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    phx-click="preset-base-url"
+                    phx-value-url="https://api.github.com"
+                  >
+                    Use github.com API
+                  </.button>
+                  <.button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    phx-click="preset-base-url"
+                    phx-value-url=""
+                  >
+                    Clear URL
+                  </.button>
+                </div>
               </div>
-            </div>
 
-            <div :if={String.downcase(@provider_key || "") == "gitea"} class="space-y-1">
-              <p class="text-xs text-base-content/70">
-                Gitea instance URL (e.g., https://gitea.example.com)
-              </p>
+              <div :if={String.downcase(@provider_key || "") == "gitea"}>
+                <p class="text-xs text-base-content/60">
+                  Gitea instance URL (e.g., https://gitea.example.com)
+                </p>
+              </div>
             </div>
           </div>
 
-          <div :if={String.downcase(@provider_key || "") == "github"} class="space-y-4">
-            <div class="rounded border border-base-300/80 p-4">
-              <p class="text-sm font-semibold mb-2">Connect with GitHub (recommended)</p>
-              <p class="text-xs text-base-content/70">
-                Conecta por OAuth y rellenamos la credencial para este provider automáticamente.
+          <%!-- Right Column: GitHub Auth --%>
+          <div :if={String.downcase(@provider_key || "") == "github"} class="space-y-6">
+            <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+              <h3 class="text-sm font-semibold text-base-content/70 mb-4">
+                Connect with GitHub (recommended)
+              </h3>
+              <p class="text-xs text-base-content/60 mb-4">
+                Connect via OAuth to automatically configure authentication for this provider.
               </p>
-              <div class="mt-3 flex flex-wrap gap-2">
+              <div class="flex flex-wrap gap-2">
                 <.link
-                  class="btn btn-primary inline-flex items-center gap-2"
+                  class="btn btn-primary btn-sm inline-flex items-center gap-2"
                   href={~p"/oauth/github/start"}
                   target="_blank"
                 >
@@ -76,6 +91,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
                 <.button
                   :if={@github_connection}
                   type="button"
+                  size="sm"
                   phx-click="use-account-connection"
                   phx-disable-with="Applying..."
                 >
@@ -84,23 +100,26 @@ defmodule ServiceHubWeb.ProviderLive.Form do
                 <.button
                   :if={@use_github_connection}
                   type="button"
+                  size="sm"
+                  variant="ghost"
                   phx-click="cancel-github-connection"
                 >
                   Cancel use
                 </.button>
               </div>
-              <p :if={@github_connection} class="text-xs text-base-content/60 mt-2">
+              <p :if={@github_connection} class="text-xs text-base-content/50 mt-3">
                 Scope: {@github_connection.scope || "not provided"}
               </p>
-              <p :if={@use_github_connection} class="text-xs text-success mt-2">
+              <p :if={@use_github_connection} class="text-xs text-success mt-3">
+                <.icon name="hero-check-circle" class="w-4 h-4 inline" />
                 Using GitHub connection for auth data.
               </p>
             </div>
 
-            <div class="rounded border border-base-300/80 p-4">
-              <p class="text-sm font-semibold mb-2">Or select custom auth</p>
-              <p class="text-xs text-base-content/70">
-                Usa PAT o GitHub App manualmente si prefieres no conectar por OAuth.
+            <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+              <h3 class="text-sm font-semibold text-base-content/70 mb-4">Or select custom auth</h3>
+              <p class="text-xs text-base-content/60 mb-4">
+                Use PAT or GitHub App manually if you prefer not to connect via OAuth.
               </p>
               <.input
                 field={@form[:auth_type_id]}
@@ -113,14 +132,17 @@ defmodule ServiceHubWeb.ProviderLive.Form do
             </div>
           </div>
 
-          <div :if={String.downcase(@provider_key || "") == "gitea"} class="space-y-4">
-            <div class="rounded border border-base-300/80 p-4">
-              <p class="text-sm font-semibold mb-2">Generate Token (Optional)</p>
-              <p class="text-xs text-base-content/70 mb-3">
+          <%!-- Right Column: Gitea Auth --%>
+          <div :if={String.downcase(@provider_key || "") == "gitea"} class="space-y-6">
+            <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+              <h3 class="text-sm font-semibold text-base-content/70 mb-4">
+                Generate Token (Optional)
+              </h3>
+              <p class="text-xs text-base-content/60 mb-4">
                 Generate a Gitea access token using your Gitea username (not email) and password
               </p>
 
-              <div class="space-y-3">
+              <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium mb-1">Gitea Username</label>
                   <input
@@ -143,23 +165,28 @@ defmodule ServiceHubWeb.ProviderLive.Form do
                 </div>
                 <.button
                   type="button"
+                  size="sm"
                   phx-click="generate-gitea-token"
                   phx-disable-with="Generating..."
                 >
                   <.icon name="hero-key" class="h-4 w-4" /> Generate Token
                 </.button>
                 <p :if={@gitea_token_generated} class="text-xs text-success">
+                  <.icon name="hero-check-circle" class="w-4 h-4 inline" />
                   Token generated and applied to auth data
                 </p>
                 <p :if={@gitea_token_error} class="text-xs text-error">
+                  <.icon name="hero-exclamation-circle" class="w-4 h-4 inline" />
                   {@gitea_token_error}
                 </p>
               </div>
             </div>
 
-            <div class="rounded border border-base-300/80 p-4">
-              <p class="text-sm font-semibold mb-2">Or select auth type manually</p>
-              <p class="text-xs text-base-content/70 mb-3">
+            <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
+              <h3 class="text-sm font-semibold text-base-content/70 mb-4">
+                Or select auth type manually
+              </h3>
+              <p class="text-xs text-base-content/60 mb-4">
                 If you already have a token, select the auth type
               </p>
               <.input
@@ -173,35 +200,51 @@ defmodule ServiceHubWeb.ProviderLive.Form do
           </div>
         </div>
 
-        <div :if={map_size(@provider_field_defs) > 0} class="space-y-2">
-          <h3 class="text-sm font-semibold">Provider settings</h3>
-          <div :for={{key, spec} <- @provider_field_defs} class="space-y-1">
-            <.input
-              id={"provider-field-#{key}"}
-              name={"provider[auth_data][#{key}]"}
-              label={field_label(key, spec)}
-              type={field_input_type(spec)}
-              value={field_value(@form, key)}
-            />
+        <%!-- Provider Settings Card --%>
+        <div
+          :if={map_size(@provider_field_defs) > 0}
+          class="max-w-4xl rounded-lg border border-base-300 bg-base-200/30 p-5"
+        >
+          <h3 class="text-sm font-semibold text-base-content/70 mb-4">Provider Settings</h3>
+          <div class="space-y-4">
+            <div :for={{key, spec} <- @provider_field_defs}>
+              <.input
+                id={"provider-field-#{key}"}
+                name={"provider[auth_data][#{key}]"}
+                label={field_label(key, spec)}
+                type={field_input_type(spec)}
+                value={field_value(@form, key)}
+              />
+            </div>
           </div>
         </div>
 
-        <div :if={map_size(@auth_field_defs) > 0} class="space-y-2">
-          <h3 class="text-sm font-semibold">Auth settings</h3>
-          <div :for={{key, spec} <- @auth_field_defs} class="space-y-1">
-            <.input
-              id={"auth-field-#{key}"}
-              name={"provider[auth_data][#{key}]"}
-              label={field_label(key, spec)}
-              type={field_input_type(spec)}
-              value={field_value(@form, key)}
-            />
+        <%!-- Auth Settings Card --%>
+        <div
+          :if={map_size(@auth_field_defs) > 0}
+          class="max-w-4xl rounded-lg border border-base-300 bg-base-200/30 p-5"
+        >
+          <h3 class="text-sm font-semibold text-base-content/70 mb-4">Auth Settings</h3>
+          <div class="space-y-4">
+            <div :for={{key, spec} <- @auth_field_defs}>
+              <.input
+                id={"auth-field-#{key}"}
+                name={"provider[auth_data][#{key}]"}
+                label={field_label(key, spec)}
+                type={field_input_type(spec)}
+                value={field_value(@form, key)}
+              />
+            </div>
           </div>
         </div>
 
-        <div :if={String.downcase(@provider_key || "") == "github"} class="space-y-2">
-          <h3 class="text-sm font-semibold">GitHub defaults</h3>
-          <p class="text-xs text-base-content/70">
+        <%!-- GitHub Defaults Card --%>
+        <div
+          :if={String.downcase(@provider_key || "") == "github"}
+          class="max-w-4xl rounded-lg border border-base-300 bg-base-200/30 p-5"
+        >
+          <h3 class="text-sm font-semibold text-base-content/70 mb-4">GitHub Defaults</h3>
+          <p class="text-xs text-base-content/60 mb-4">
             Optional. Use this when the provider represents a single organization to prefill service
             owners and keep health/version endpoints consistent.
           </p>
@@ -214,24 +257,24 @@ defmodule ServiceHubWeb.ProviderLive.Form do
           />
         </div>
 
-        <footer>
+        <footer class="max-w-4xl mt-6">
           <.button phx-disable-with="Saving..." variant="primary">Save Provider</.button>
           <.button navigate={return_path(@current_scope, @return_to, @provider)}>Cancel</.button>
         </footer>
       </.form>
 
       <%!-- Danger Zone --%>
-      <div :if={@live_action == :edit} class="mt-8 border border-error/30 rounded-lg p-6">
-        <h2 class="text-lg font-semibold text-error mb-2">Danger Zone</h2>
-        <p class="text-sm text-base-content/70 mb-4">
+      <div :if={@live_action == :edit} class="max-w-4xl mt-8 border border-error/30 rounded-lg p-5">
+        <h3 class="text-sm font-semibold text-error mb-2">Danger Zone</h3>
+        <p class="text-xs text-base-content/60 mb-4">
           These actions can break existing services and connections. Proceed with caution.
         </p>
 
-        <div class="space-y-3">
-          <div class="flex items-center justify-between p-3 border border-base-300 rounded">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between p-3 border border-base-300/50 rounded-lg bg-base-100/50">
             <div>
               <div class="font-medium text-sm">Change Provider Type</div>
-              <div class="text-xs text-base-content/60">
+              <div class="text-xs text-base-content/50">
                 Changing the provider type may break existing services
               </div>
             </div>
@@ -245,10 +288,10 @@ defmodule ServiceHubWeb.ProviderLive.Form do
             </.button>
           </div>
 
-          <div class="flex items-center justify-between p-3 border border-base-300 rounded">
+          <div class="flex items-center justify-between p-3 border border-base-300/50 rounded-lg bg-base-100/50">
             <div>
               <div class="font-medium text-sm">Change Base URL</div>
-              <div class="text-xs text-base-content/60">
+              <div class="text-xs text-base-content/50">
                 Changing the URL will affect all API calls to this provider
               </div>
             </div>
@@ -262,10 +305,10 @@ defmodule ServiceHubWeb.ProviderLive.Form do
             </.button>
           </div>
 
-          <div class="flex items-center justify-between p-3 border border-base-300 rounded">
+          <div class="flex items-center justify-between p-3 border border-base-300/50 rounded-lg bg-base-100/50">
             <div>
               <div class="font-medium text-sm">Delete Provider</div>
-              <div class="text-xs text-base-content/60">
+              <div class="text-xs text-base-content/50">
                 This will permanently delete all services and connections
               </div>
             </div>

@@ -43,8 +43,8 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
         </div>
 
         <%!-- Services Section --%>
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
+        <div class="rounded-lg border border-base-300 bg-base-200/30">
+          <div class="flex items-center justify-between p-4 border-b border-base-300">
             <h2 class="text-lg font-semibold">Services</h2>
             <.button
               navigate={~p"/providers/#{@provider}/services/new"}
@@ -55,16 +55,23 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
             </.button>
           </div>
 
-          <div :if={Enum.empty?(@services)} class="text-center py-8 text-sm text-base-content/50">
-            No services configured
-          </div>
+          <div class="p-4">
+            <div
+              :if={Enum.empty?(@services)}
+              class="text-center py-8 text-sm text-base-content/50"
+            >
+              <.icon name="hero-folder-open" class="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>No services configured yet</p>
+              <p class="text-xs mt-1">Add a service to start tracking deployments</p>
+            </div>
 
-          <div :if={!Enum.empty?(@services)} class="space-y-2">
-            <.service_card
-              :for={service <- @services}
-              service={service}
-              provider={@provider}
-            />
+            <div :if={!Enum.empty?(@services)} class="space-y-3">
+              <.service_card
+                :for={service <- @services}
+                service={service}
+                provider={@provider}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -79,20 +86,22 @@ defmodule ServiceHubWeb.ProviderLive.Dashboard do
     ~H"""
     <.link
       navigate={~p"/providers/#{@provider.id}/services/#{@service.id}"}
-      class="flex items-center justify-between p-3 rounded hover:bg-base-200 transition-colors group"
+      class="block p-4 rounded-lg border border-base-300 bg-base-100 hover:border-primary/50 hover:bg-base-200/50 transition-all group"
     >
-      <div class="flex items-center gap-3 flex-1 min-w-0">
+      <div class="flex items-center justify-between gap-3">
         <div class="flex-1 min-w-0">
-          <div class="font-medium truncate">{@service.name}</div>
-          <div class="text-sm text-base-content/50 truncate">
+          <div class="font-medium text-base-content group-hover:text-primary transition-colors">
+            {@service.name}
+          </div>
+          <div class="text-sm text-base-content/60 font-mono">
             {@service.owner}/{@service.repo}
           </div>
         </div>
+        <.icon
+          name="hero-chevron-right"
+          class="w-5 h-5 text-base-content/30 group-hover:text-primary transition-colors flex-shrink-0"
+        />
       </div>
-      <.icon
-        name="hero-chevron-right"
-        class="w-5 h-5 text-base-content/30 group-hover:text-base-content/60 transition-colors flex-shrink-0"
-      />
     </.link>
     """
   end
