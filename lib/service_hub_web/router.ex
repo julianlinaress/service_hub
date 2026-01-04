@@ -63,7 +63,8 @@ defmodule ServiceHubWeb.Router do
       # Provider dashboard with service management
       live "/providers/:id", ProviderLive.Dashboard, :show
       live "/providers/:provider_id/services/new", ServiceLive.Detail, :new
-      live "/providers/:provider_id/services/:id", ServiceLive.Detail, :edit
+      live "/providers/:provider_id/services/:id", ServiceLive.Detail, :show
+      live "/providers/:provider_id/services/:id/settings", ServiceLive.Detail, :edit
 
       # Services config (placeholder for future list view)
       # live "/config/services", ServiceLive.Index, :index

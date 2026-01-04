@@ -86,7 +86,7 @@ defmodule ServiceHubWeb.ServiceLive.FormComponent do
           <div class="rounded-lg border border-base-300 bg-base-200/30 p-5">
             <h3 class="text-sm font-semibold text-base-content/70 mb-1">Endpoints</h3>
             <p class="text-xs text-base-content/50 mb-4">
-              Use {"{{host}}"} as a placeholder for the client's hostname
+              Use {"{{host}}"} as a placeholder for the deployment's hostname.
             </p>
             <div class="grid gap-4 sm:grid-cols-2">
               <.input

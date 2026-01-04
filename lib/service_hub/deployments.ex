@@ -56,11 +56,22 @@ defmodule ServiceHub.Deployments do
   def change_deployment(%Scope{} = scope, %Deployment{} = deployment, attrs \\ %{}) do
     deployment = preload_service(deployment)
 
-    case deployment.service.provider do
-      %{user_id: user_id} when user_id == scope.user.id ->
+    cond do
+      deployment.service && deployment.service.provider &&
+          deployment.service.provider.user_id == scope.user.id ->
         Deployment.changeset(deployment, attrs)
 
-      _ ->
+      service_id = service_id_from_attrs(attrs || %{}) || deployment.service_id ->
+        with {:ok, service} <- fetch_service(scope, service_id) do
+          Deployment.changeset(%{deployment | service_id: service.id, service: service}, attrs)
+        else
+          _ ->
+            deployment
+            |> Deployment.changeset(attrs)
+            |> Ecto.Changeset.add_error(:service_id, "is invalid for this user")
+        end
+
+      true ->
         deployment
         |> Deployment.changeset(attrs)
         |> Ecto.Changeset.add_error(:service_id, "is invalid for this user")

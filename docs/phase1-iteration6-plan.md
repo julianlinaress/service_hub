@@ -47,6 +47,12 @@
 ### Newly agreed behaviors
 - Health checks are mandatory for every deployment but expectation rules are configurable (e.g., require 200-only or a specific JSON shape).
 - Version checks are optional per deployment; when enabled they can carry per-deployment expectations for parsing/validation.
+- Health expectation shape: allowed statuses list plus optional expected JSON fragment; status outside expectations downgrades health from ok.
+- Version expectation shape: optional allowed statuses list and a field name to read from JSON (plain text still works); failures record the check but don’t block other actions.
+- Service UX: clicking a service opens its dashboard; settings live under a separate button (no direct edit from the list).
+- Service dashboards show deployments with manual health/version triggers; add/create flows will come after the dashboard wiring.
+- Creating a deployment only records metadata/expectations; it does not install or deploy code.
+- Endpoints remain defined at the service level (version/health templates with `{{host}}` placeholder); deployments carry the host (and optional API key) only.
 
 ## Testing Plan
 - ExUnit coverage for context changesets/queries and check modules (ok/warning/down/error cases; JSON vs plain text versions).
