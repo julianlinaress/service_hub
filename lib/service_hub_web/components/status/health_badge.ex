@@ -50,9 +50,9 @@ defmodule ServiceHubWeb.Components.Status.HealthBadge do
   defp icon_size("md"), do: "w-2.5 h-2.5"
   defp icon_size("lg"), do: "w-3 h-3"
 
-  defp color_class("ok"), do: "badge-ghost"
-  defp color_class("warning"), do: "badge-ghost"
-  defp color_class("down"), do: "badge-ghost"
+  defp color_class("ok"), do: "badge-success"
+  defp color_class("warning"), do: "badge-warning"
+  defp color_class("down"), do: "badge-error"
   defp color_class("unknown"), do: "badge-ghost"
   defp color_class(_), do: "badge-ghost"
 

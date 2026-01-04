@@ -8,7 +8,6 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   alias ServiceHub.Checks.{Health, Version}
   alias Phoenix.LiveView.JS
   alias ServiceHubWeb.Components.Status.HealthBadge
-  alias ServiceHubWeb.Components.Status.VersionDisplay
   alias ServiceHubWeb.DeploymentLive.FormComponent, as: DeploymentForm
 
   @impl true
@@ -60,104 +59,134 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
             />
           </div>
         <% else %>
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="lg:col-span-2 space-y-4">
-              <div class="rounded-lg border border-base-300 bg-base-100 p-4">
-                <h2 class="text-lg font-semibold mb-2">Repository</h2>
-                <div class="text-sm text-base-content/70 font-mono">
-                  {@service.owner}/{@service.repo}
+          <div class="space-y-4">
+            <div class="rounded-lg border border-base-300 bg-base-100 p-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div>
+                    <h2 class="text-sm font-semibold text-base-content/60">Repository</h2>
+                    <div class="text-base text-base-content font-mono">
+                      {@service.owner}/{@service.repo}
+                    </div>
+                  </div>
+                  <div class="divider divider-horizontal"></div>
+                  <div>
+                    <h2 class="text-sm font-semibold text-base-content/60">Default ref</h2>
+                    <div class="text-base text-base-content font-semibold">
+                      {@service.default_ref || "main"}
+                    </div>
+                  </div>
                 </div>
-                <p class="text-sm text-base-content/60 mt-2">
-                  Default ref: <span class="font-semibold">{@service.default_ref || "main"}</span>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-base-300 bg-base-100 p-4">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold">Deployments</h2>
+                <.button variant="primary" size="sm" phx-click="new-deployment">
+                  <.icon name="hero-plus" class="w-4 h-4" /> Add deployment
+                </.button>
+              </div>
+
+              <div :if={Enum.empty?(@deployments)} class="text-center py-12">
+                <.icon name="hero-server-stack" class="w-12 h-12 mx-auto text-base-content/30 mb-3" />
+                <p class="text-base-content/60">No deployments yet</p>
+                <p class="text-sm text-base-content/40 mt-1">
+                  Create a deployment to track health and version information
                 </p>
               </div>
 
-              <div class="rounded-lg border border-base-300 bg-base-100 p-4">
-                <h2 class="text-lg font-semibold mb-2">Endpoints</h2>
-                <div class="space-y-2 text-sm text-base-content/70">
-                  <div>
-                    <span class="font-semibold">Version template:</span>
-                    <span class="font-mono">
-                      {@service.version_endpoint_template || "https://{{host}}/api/version"}
-                    </span>
-                  </div>
-                  <div>
-                    <span class="font-semibold">Health template:</span>
-                    <span class="font-mono">
-                      {@service.healthcheck_endpoint_template || "https://{{host}}/api/health"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            <div class="space-y-4">
-              <div class="rounded-lg border border-base-300 bg-base-100 p-4">
-                <div class="flex items-center justify-between mb-3">
-                  <h2 class="text-lg font-semibold">Deployments</h2>
-                  <.button variant="ghost" size="sm" phx-click="new-deployment">
-                    <.icon name="hero-plus" class="w-4 h-4" /> Add deployment
-                  </.button>
-                </div>
-
-                <div :if={Enum.empty?(@deployments)} class="text-sm text-base-content/60">
-                  No deployments yet. Deployments will list here with version and health checks.
-                </div>
-
-                <div :if={!Enum.empty?(@deployments)} class="space-y-3">
-                  <div
-                    :for={deployment <- @deployments}
-                    class="p-3 rounded-lg border border-base-200 bg-base-100/60"
-                  >
-                    <div class="flex items-center justify-between gap-2">
-                      <div>
-                        <p class="font-semibold">{deployment.name}</p>
-                        <p class="text-xs text-base-content/60">
-                          {deployment.env} · {deployment.host}
-                        </p>
+              <div :if={!Enum.empty?(@deployments)} class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div
+                  :for={deployment <- @deployments}
+                  class="p-4 rounded-lg border border-base-200 bg-base-100 hover:border-base-300 transition-colors"
+                >
+                  <div class="flex items-start justify-between gap-3 mb-3">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-1">
+                        <h3 class="font-semibold text-base truncate">{deployment.name}</h3>
+                        <HealthBadge.health_badge status={deployment.last_health_status} size="sm" />
                       </div>
-                      <HealthBadge.health_badge status={deployment.last_health_status} size="sm" />
-                    </div>
-
-                    <div class="flex items-center gap-2 mt-2 text-xs text-base-content/60">
-                      <span class="font-semibold">Version:</span>
-                      <VersionDisplay.version_display
-                        version={deployment.current_version}
-                        checked_at={deployment.last_version_checked_at}
-                        size="sm"
-                      />
-                    </div>
-                    <div class="flex items-center justify-between mt-2 text-xs text-base-content/60">
-                      <div class="flex gap-2">
-                        <.button
-                          size="sm"
-                          variant="ghost"
-                          phx-click="edit-deployment"
-                          phx-value-id={deployment.id}
+                      <div class="flex items-center gap-2 text-sm text-base-content/60 flex-wrap">
+                        <span class="badge badge-ghost badge-sm">{deployment.env}</span>
+                        <span class="truncate font-mono text-xs">{deployment.host}</span>
+                        <span
+                          :if={deployment.automatic_checks_enabled}
+                          class="badge badge-info badge-sm gap-1"
+                          title={"Auto-checks every #{format_interval(deployment.check_interval_minutes)}"}
                         >
-                          <.icon name="hero-cog-6-tooth" class="w-4 h-4" /> Edit
-                        </.button>
-                        <.button
-                          size="sm"
-                          variant="ghost"
-                          phx-click="check-health"
-                          phx-value-id={deployment.id}
-                          phx-disable-with="Checking..."
-                        >
-                          <.icon name="hero-heart-pulse" class="w-4 h-4" /> Health
-                        </.button>
-                        <.button
-                          size="sm"
-                          variant="ghost"
-                          phx-click="check-version"
-                          phx-value-id={deployment.id}
-                          phx-disable-with="Checking..."
-                        >
-                          <.icon name="hero-arrow-path" class="w-4 h-4" /> Version
-                        </.button>
+                          <.icon name="hero-clock" class="w-3 h-3" />
+                          Auto {format_interval(deployment.check_interval_minutes)}
+                        </span>
                       </div>
                     </div>
+                  </div>
+
+                  <div class="space-y-2 mb-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold text-base-content/60">Version</span>
+                      <code class={[
+                        "text-xs font-mono",
+                        if(deployment.current_version,
+                          do: "text-base-content",
+                          else: "text-base-content/40"
+                        )
+                      ]}>
+                        {deployment.current_version || "Not checked"}
+                      </code>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-base-content/50">Health checked</span>
+                      <span class="text-base-content/60">
+                        {format_relative_time(deployment.last_health_checked_at)}
+                      </span>
+                    </div>
+                    <div
+                      :if={deployment.version_check_enabled}
+                      class="flex items-center justify-between text-xs"
+                    >
+                      <span class="text-base-content/50">Version checked</span>
+                      <span class="text-base-content/60">
+                        {format_relative_time(deployment.last_version_checked_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 pt-2 border-t border-base-200">
+                    <.button
+                      size="sm"
+                      variant="ghost"
+                      phx-click="edit-deployment"
+                      phx-value-id={deployment.id}
+                    >
+                      <.icon name="hero-cog-6-tooth" class="w-4 h-4" /> Edit
+                    </.button>
+                    <.button
+                      size="sm"
+                      variant="ghost"
+                      phx-click="check-health"
+                      phx-value-id={deployment.id}
+                      disabled={@checking_health == deployment.id}
+                    >
+                      <%= if @checking_health == deployment.id do %>
+                        <.icon name="hero-arrow-path" class="w-4 h-4 animate-spin" /> Checking...
+                      <% else %>
+                        <.icon name="hero-heart" class="w-4 h-4" /> Health
+                      <% end %>
+                    </.button>
+                    <.button
+                      size="sm"
+                      variant="ghost"
+                      phx-click="check-version"
+                      phx-value-id={deployment.id}
+                      disabled={@checking_version == deployment.id}
+                    >
+                      <%= if @checking_version == deployment.id do %>
+                        <.icon name="hero-arrow-path" class="w-4 h-4 animate-spin" /> Checking...
+                      <% else %>
+                        <.icon name="hero-arrow-path" class="w-4 h-4" /> Version
+                      <% end %>
+                    </.button>
                   </div>
                 </div>
               </div>
@@ -240,7 +269,9 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
      |> assign(:deployments, [])
      |> assign(:show_deployment_modal, false)
      |> assign(:deployment_form, nil)
-     |> assign(:deployment_action, nil)}
+     |> assign(:deployment_action, nil)
+     |> assign(:checking_health, nil)
+     |> assign(:checking_version, nil)}
   end
 
   @impl true
@@ -312,49 +343,30 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   @impl true
   def handle_event("check-health", %{"id" => id}, socket) do
-    deployment = Deployments.get_deployment!(socket.assigns.current_scope, String.to_integer(id))
+    deployment_id = String.to_integer(id)
+    deployment = Deployments.get_deployment!(socket.assigns.current_scope, deployment_id)
+    service = socket.assigns.service
 
-    case Health.run(deployment, socket.assigns.service) do
-      {:ok, _updated} ->
-        {:noreply,
-         socket
-         |> load_deployments()
-         |> put_flash(:info, "Health check completed")}
-
-      {:warning, reason, _deployment} ->
-        {:noreply,
-         socket
-         |> load_deployments()
-         |> put_flash(:error, "Health warning: #{format_reason(reason)}")}
-
-      {:error, reason, _deployment} ->
-        {:noreply,
-         socket
-         |> load_deployments()
-         |> put_flash(:error, "Health check failed: #{format_reason(reason)}")}
-    end
+    {:noreply,
+     socket
+     |> assign(:checking_health, deployment_id)
+     |> start_async(:check_health, fn ->
+       Health.run(deployment, service)
+     end)}
   end
 
   @impl true
   def handle_event("check-version", %{"id" => id}, socket) do
-    deployment = Deployments.get_deployment!(socket.assigns.current_scope, String.to_integer(id))
+    deployment_id = String.to_integer(id)
+    deployment = Deployments.get_deployment!(socket.assigns.current_scope, deployment_id)
+    service = socket.assigns.service
 
-    case Version.run(deployment, socket.assigns.service) do
-      {:ok, _updated} ->
-        {:noreply,
-         socket
-         |> load_deployments()
-         |> put_flash(:info, "Version check updated")}
-
-      {:skipped, _deployment} ->
-        {:noreply, put_flash(socket, :info, "Version check is disabled for this deployment")}
-
-      {:error, reason, _deployment} ->
-        {:noreply,
-         socket
-         |> load_deployments()
-         |> put_flash(:error, "Version check failed: #{format_reason(reason)}")}
-    end
+    {:noreply,
+     socket
+     |> assign(:checking_version, deployment_id)
+     |> start_async(:check_version, fn ->
+       Version.run(deployment, service)
+     end)}
   end
 
   @impl true
@@ -397,6 +409,73 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     {:noreply, close_deployment_modal(socket)}
   end
 
+  @impl true
+  def handle_async(:check_health, {:ok, result}, socket) do
+    case result do
+      {:ok, _updated} ->
+        {:noreply,
+         socket
+         |> assign(:checking_health, nil)
+         |> load_deployments()
+         |> put_flash(:info, "Health check completed")}
+
+      {:warning, reason, _deployment} ->
+        {:noreply,
+         socket
+         |> assign(:checking_health, nil)
+         |> load_deployments()
+         |> put_flash(:error, "Health warning: #{format_reason(reason)}")}
+
+      {:error, reason, _deployment} ->
+        {:noreply,
+         socket
+         |> assign(:checking_health, nil)
+         |> load_deployments()
+         |> put_flash(:error, "Health check failed: #{format_reason(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_async(:check_health, {:exit, reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:checking_health, nil)
+     |> put_flash(:error, "Health check crashed: #{inspect(reason)}")}
+  end
+
+  @impl true
+  def handle_async(:check_version, {:ok, result}, socket) do
+    case result do
+      {:ok, _updated} ->
+        {:noreply,
+         socket
+         |> assign(:checking_version, nil)
+         |> load_deployments()
+         |> put_flash(:info, "Version check updated")}
+
+      {:skipped, _deployment} ->
+        {:noreply,
+         socket
+         |> assign(:checking_version, nil)
+         |> put_flash(:info, "Version check is disabled for this deployment")}
+
+      {:error, reason, _deployment} ->
+        {:noreply,
+         socket
+         |> assign(:checking_version, nil)
+         |> load_deployments()
+         |> put_flash(:error, "Version check failed: #{format_reason(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_async(:check_version, {:exit, reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:checking_version, nil)
+     |> put_flash(:error, "Version check crashed: #{inspect(reason)}")}
+  end
+
   defp format_reason({:unexpected_status, status}), do: "unexpected status #{status}"
   defp format_reason({:error, reason}), do: inspect(reason)
   defp format_reason(reason), do: inspect(reason)
@@ -404,4 +483,29 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   defp close_deployment_modal(socket) do
     assign(socket, show_deployment_modal: false, deployment_form: nil, deployment_action: nil)
   end
+
+  defp format_relative_time(nil), do: "Never"
+
+  defp format_relative_time(datetime) do
+    case DateTime.from_naive(datetime, "Etc/UTC") do
+      {:ok, dt} ->
+        diff = DateTime.diff(DateTime.utc_now(), dt, :second)
+
+        cond do
+          diff < 60 -> "Just now"
+          diff < 3600 -> "#{div(diff, 60)}m ago"
+          diff < 86400 -> "#{div(diff, 3600)}h ago"
+          diff < 604_800 -> "#{div(diff, 86400)}d ago"
+          true -> Calendar.strftime(dt, "%b %d, %Y")
+        end
+
+      _ ->
+        "Unknown"
+    end
+  end
+
+  defp format_interval(minutes) when minutes < 60, do: "#{minutes}m"
+  defp format_interval(minutes) when minutes < 1440, do: "#{div(minutes, 60)}h"
+  defp format_interval(1440), do: "24h"
+  defp format_interval(minutes), do: "#{div(minutes, 60)}h"
 end

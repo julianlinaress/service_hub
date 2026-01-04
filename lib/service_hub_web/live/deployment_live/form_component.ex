@@ -77,6 +77,37 @@ defmodule ServiceHubWeb.DeploymentLive.FormComponent do
             </div>
           </div>
 
+          <div class="rounded border border-base-300 p-3 space-y-3">
+            <div class="flex items-center gap-2">
+              <.input
+                field={@form[:automatic_checks_enabled]}
+                type="checkbox"
+                label="Enable automatic checks"
+              />
+              <p class="text-xs text-base-content/60">
+                Run health and version checks automatically at specified intervals.
+              </p>
+            </div>
+            <.input
+              field={@form[:check_interval_minutes]}
+              type="select"
+              label="Check interval"
+              options={[
+                {"1 minute", 1},
+                {"2 minutes", 2},
+                {"5 minutes", 5},
+                {"10 minutes", 10},
+                {"30 minutes", 30},
+                {"1 hour", 60},
+                {"2 hours", 120},
+                {"6 hours", 360},
+                {"12 hours", 720},
+                {"24 hours", 1440}
+              ]}
+              prompt="Select interval"
+            />
+          </div>
+
           <div class="flex items-center gap-3">
             <.button phx-disable-with="Saving...">Save</.button>
             <.button type="button" variant="ghost" phx-click={JS.push("cancel", target: @myself)}>

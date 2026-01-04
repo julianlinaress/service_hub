@@ -22,6 +22,8 @@ defmodule ServiceHub.Deployments.Deployment do
     field :version_check_enabled, :boolean, default: false
     field :version_expectation, :map, default: %{}
     field :healthcheck_expectation, :map, default: %{"allowed_statuses" => [200]}
+    field :automatic_checks_enabled, :boolean, default: false
+    field :check_interval_minutes, :integer
 
     belongs_to :service, Service
 
@@ -44,10 +46,13 @@ defmodule ServiceHub.Deployments.Deployment do
                    :last_health_status,
                    :last_health_checked_at,
                    :version_check_enabled,
-                   :version_expectation
+                   :version_expectation,
+                   :automatic_checks_enabled,
+                   :check_interval_minutes
                  ]
 
   @health_statuses ["unknown", "ok", "warning", "down"]
+  @allowed_intervals [1, 2, 5, 10, 30, 60, 120, 360, 720, 1440]
 
   def changeset(deployment, attrs) do
     deployment
@@ -58,6 +63,7 @@ defmodule ServiceHub.Deployments.Deployment do
     |> validate_inclusion(:last_health_status, @health_statuses)
     |> validate_expectation(:healthcheck_expectation)
     |> validate_expectation(:version_expectation)
+    |> validate_automatic_checks()
     |> foreign_key_constraint(:service_id)
     |> unique_constraint(:name, name: :deployments_service_id_name_index)
     |> unique_constraint(:host, name: :deployments_service_id_host_index)
@@ -81,5 +87,24 @@ defmodule ServiceHub.Deployments.Deployment do
         [{field, "must be a map"}]
       end
     end)
+  end
+
+  defp validate_automatic_checks(changeset) do
+    automatic_enabled = get_field(changeset, :automatic_checks_enabled)
+    interval = get_field(changeset, :check_interval_minutes)
+
+    cond do
+      automatic_enabled and is_nil(interval) ->
+        add_error(changeset, :check_interval_minutes, "must be set when automatic checks are enabled")
+
+      automatic_enabled and interval not in @allowed_intervals ->
+        add_error(changeset, :check_interval_minutes, "must be one of the allowed intervals")
+
+      not automatic_enabled ->
+        changeset
+
+      true ->
+        changeset
+    end
   end
 end
