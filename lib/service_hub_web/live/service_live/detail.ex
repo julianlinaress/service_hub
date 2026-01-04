@@ -124,7 +124,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
                       <span class="font-semibold">Version:</span>
                       <VersionDisplay.version_display
                         version={deployment.current_version}
-                        last_checked_at={deployment.last_version_checked_at}
+                        checked_at={deployment.last_version_checked_at}
                         size="sm"
                       />
                     </div>

@@ -3,6 +3,7 @@ defmodule ServiceHub.Checks.Version do
   Version check engine. Version checks are optional per deployment and can carry
   per-deployment expectations for parsing/validation.
   """
+  require Logger
   alias ServiceHub.Deployments.Deployment
   alias ServiceHub.Services.Service
   alias ServiceHub.Repo
@@ -10,7 +11,7 @@ defmodule ServiceHub.Checks.Version do
   @default_allowed_statuses [200]
   @default_timeout 5_000
 
-  def run(%Deployment{version_check_enabled: false} = deployment, %Service{} = service) do
+  def run(%Deployment{version_check_enabled: false} = deployment, %Service{}) do
     {:skipped, Repo.preload(deployment, service: :provider)}
   end
 
@@ -39,13 +40,16 @@ defmodule ServiceHub.Checks.Version do
     result =
       case Req.request(req_opts) do
         {:ok, %{status: status} = response} ->
+          Logger.info("Version check response url=#{url} status=#{status}")
           if status in allowed_statuses do
+            log_parsing(field, response.body)
             parse_version(response.body, field)
           else
             {:error, {:unexpected_status, status}}
           end
 
         {:error, reason} ->
+          Logger.info("Version check error url=#{url} error=#{inspect(reason)}")
           {:error, reason}
       end
 
@@ -73,9 +77,17 @@ defmodule ServiceHub.Checks.Version do
 
   defp parse_version(body, field) when is_map(body) do
     case Map.fetch(body, field) do
-      {:ok, version} when is_binary(version) -> {:ok, version}
-      {:ok, version} -> {:ok, to_string(version)}
-      :error -> {:error, :missing_version_field}
+      {:ok, version} when is_binary(version) ->
+        Logger.info("Version check field_found=#{field} value=#{version}")
+        {:ok, version}
+
+      {:ok, version} ->
+        Logger.info("Version check field_found=#{field} value=#{inspect(version)}")
+        {:ok, to_string(version)}
+
+      :error ->
+        Logger.info("Version check missing_field=#{field}")
+        {:error, :missing_version_field}
     end
   end
 
@@ -87,13 +99,32 @@ defmodule ServiceHub.Checks.Version do
       |> List.first()
 
     if version in [nil, ""] do
+      Logger.info("Version check empty text body")
       {:error, :empty_version}
     else
+      Logger.info("Version check text_version=#{version}")
       {:ok, version}
     end
   end
 
   defp parse_version(_body, _field), do: {:error, :unparseable_version}
+
+  defp log_parsing(field, body) when is_map(body) do
+    Logger.info("Version check parsing field=#{field} from JSON body")
+  end
+
+  defp log_parsing(field, body) when is_binary(body) do
+    snippet =
+      body
+      |> String.slice(0, 200)
+      |> String.replace("\n", "\\n")
+
+    Logger.info("Version check parsing field=#{field} from text body snippet=#{snippet}")
+  end
+
+  defp log_parsing(field, _body) do
+    Logger.info("Version check parsing field=#{field} from text body")
+  end
 
   defp build_headers(%Deployment{api_key: nil}), do: []
 

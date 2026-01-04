@@ -4,6 +4,7 @@ defmodule ServiceHub.Checks.Health do
   expectations (allowed statuses, expected JSON fragment) are configurable per
   deployment.
   """
+  require Logger
   alias ServiceHub.Deployments.Deployment
   alias ServiceHub.Services.Service
   alias ServiceHub.Repo
@@ -36,9 +37,11 @@ defmodule ServiceHub.Checks.Health do
     result =
       case Req.request(req_opts) do
         {:ok, %{status: status} = response} ->
+          Logger.info("Health check response url=#{url} status=#{status}")
           classify_response(status, response, allowed_statuses, expected_json)
 
         {:error, reason} ->
+          Logger.info("Health check error url=#{url} error=#{inspect(reason)}")
           {:down, {:error, reason}}
       end
 

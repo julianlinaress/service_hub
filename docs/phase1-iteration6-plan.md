@@ -18,26 +18,21 @@
 - No pipeline/workflow orchestration; deployment is host metadata + checks only.
 
 ## Work Breakdown
-1) **Schema & Migration**
-   - Create `deployments` table with fields from PROJECT_PLAN.md (service_id FK, name, host, env, api_key, current_version, last_version_checked_at, last_health_status, last_health_checked_at, timestamps).
-   - Optional migration step to backfill from `clients` + `service_clients` if data exists (guarded to avoid failures on empty tables).
-2) **Context Layer**
-   - New schema module `ServiceHub.Deployments.Deployment` with validations (required fields, host format, env presence, unique constraint on service_id+name and service_id+host).
-   - `ServiceHub.Deployments` context: list/get/create/update/delete with user scoping via service/provider ownership; helper queries for counts and preload of service/provider.
-3) **Check Engines**
-   - `ServiceHub.Checks.Version` and `ServiceHub.Checks.Health`: build URL from service templates, interpolate host, include `api_key` header, handle JSON/plain text version responses, classify health statuses per spec, and update deployment fields + timestamps.
-   - Return tagged tuples for UI feedback; log/audit stub via existing instrumentation pattern.
-4) **LiveView & Routes**
-   - Router scope: nested deployment routes under provider/service; index/list, new, edit, detail.
-   - LiveViews/forms for deployment CRUD; reuse status components for badges; inputs for host/env/api_key; show last check times and current version.
-5) **Service Detail Integration**
-   - Update service detail page to list deployments inline with quick actions (check version/health per deployment and bulk for all in the service).
-   - Provide empty state CTA to add first deployment.
+1) **Schema & Migration** — Done
+   - Deployments table added; backfill path from clients/service_clients included.
+   - Service endpoint templates restored (version/health with `{{host}}`); deployment endpoints removed.
+2) **Context Layer** — Done
+   - `ServiceHub.Deployments` with scoped CRUD, validations (host/env/name uniques per service).
+3) **Check Engines** — Done
+   - `ServiceHub.Checks.Version/Health` use service templates + deployment host, include API key, update timestamps/fields, and log URL/status/results.
+4) **LiveView & Routes** — Done
+   - Deployment modal inside service dashboard for add/edit; health/version triggers per deployment; settings modal for services.
+5) **Service Detail Integration** — Done
+   - Deployments listed with health badge, version display, and actions; service endpoints shown from templates.
 6) **Dashboard Metrics**
-   - Add deployment count + health summary to main/provider dashboards using context helpers; keep UI minimal to avoid layout churn.
+   - Still pending (deployment counts/health summary on dashboards).
 7) **Cleanup & Compatibility**
-   - Mark `ServiceHub.Clients` and `ServiceHub.ServiceClients` as deprecated in docs/comments; leave code intact for migration window.
-   - Update docs with new flows and API expectations.
+   - Legacy Clients/ServiceClients remain documented as deprecated; follow-up cleanup later.
 
 ## Risks & Decisions to Lock
 - HTTP client behavior (timeouts, SSL errors) should return meaningful UI messages; default timeouts to avoid hanging LiveViews.
@@ -53,6 +48,7 @@
 - Service dashboards show deployments with manual health/version triggers; add/create flows will come after the dashboard wiring.
 - Creating a deployment only records metadata/expectations; it does not install or deploy code.
 - Endpoints remain defined at the service level (version/health templates with `{{host}}` placeholder); deployments carry the host (and optional API key) only.
+- Logging: health/version checks log requested URL, status, parsing field expectations, and parsed values (or missing/empty cases) for visibility.
 
 ## Testing Plan
 - ExUnit coverage for context changesets/queries and check modules (ok/warning/down/error cases; JSON vs plain text versions).
