@@ -10,7 +10,7 @@ defmodule ServiceHubWeb.ProviderLive.Index do
       <.header>
         Listing Providers
         <:actions>
-          <.button variant="primary" navigate={~p"/providers/new"}>
+          <.button variant="primary" navigate={~p"/config/providers/new"}>
             <.icon name="hero-plus" /> New Provider
           </.button>
         </:actions>

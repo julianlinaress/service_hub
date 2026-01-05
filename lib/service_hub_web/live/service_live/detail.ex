@@ -6,6 +6,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   alias ServiceHub.{Deployments, Providers, Services}
   alias ServiceHub.Checks.{Health, Version}
+  alias ServiceHub.Deployments.PubSub, as: DeploymentPubSub
   alias Phoenix.LiveView.JS
   alias ServiceHubWeb.Components.Status.HealthBadge
   alias ServiceHubWeb.DeploymentLive.FormComponent, as: DeploymentForm
@@ -123,6 +124,21 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
                   </div>
 
                   <div class="space-y-2 mb-3">
+                    <div
+                      :if={deployment.automatic_checks_enabled && Map.get(deployment, :next_check_at)}
+                      class="flex items-center justify-between text-xs"
+                    >
+                      <span class="text-base-content/50">Next check</span>
+                      <span
+                        class="text-base-content/60 font-mono"
+                        id={"next-check-#{deployment.id}"}
+                        phx-hook="Countdown"
+                        data-next-run-at={format_iso8601(Map.get(deployment, :next_check_at))}
+                        data-server-utc={format_iso8601(@server_now)}
+                      >
+                        {Map.get(deployment, :next_check_in)}
+                      </span>
+                    </div>
                     <div class="flex items-center justify-between">
                       <span class="text-xs font-semibold text-base-content/60">Version</span>
                       <code class={[
@@ -261,17 +277,24 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   @impl true
   def mount(%{"provider_id" => provider_id} = params, _session, socket) do
     provider = Providers.get_provider!(socket.assigns.current_scope, provider_id)
+    service = load_service(socket, params)
+
+    # Subscribe to deployment updates for this service
+    if connected?(socket) and service do
+      DeploymentPubSub.subscribe_service_deployments(service.id)
+    end
 
     {:ok,
      socket
      |> assign(:provider, provider)
-     |> assign(:service, load_service(socket, params))
+     |> assign(:service, service)
      |> assign(:deployments, [])
      |> assign(:show_deployment_modal, false)
      |> assign(:deployment_form, nil)
      |> assign(:deployment_action, nil)
      |> assign(:checking_health, nil)
-     |> assign(:checking_version, nil)}
+     |> assign(:checking_version, nil)
+     |> assign(:server_now, DateTime.utc_now(:second))}
   end
 
   @impl true
@@ -337,9 +360,90 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         socket.assigns.current_scope,
         socket.assigns.service.id
       )
+      |> enrich_with_next_check_times()
 
-    assign(socket, :deployments, deployments)
+    socket
+    |> assign(:deployments, deployments)
+    |> assign(:server_now, DateTime.utc_now(:second))
   end
+
+  defp enrich_with_next_check_times(deployments) do
+    import Ecto.Query
+    alias ServiceHub.Automations.AutomationTarget
+    alias ServiceHub.Repo
+
+    # Get all deployment IDs
+    deployment_ids = Enum.map(deployments, & &1.id)
+
+    # Query automation_targets for next_run_at times
+    next_checks =
+      from(at in AutomationTarget,
+        where: at.target_type == "deployment",
+        where: at.target_id in ^deployment_ids,
+        where: at.automation_id == "deployment_health",
+        where: at.enabled == true,
+        select: {at.target_id, at.next_run_at}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    # Enrich deployments with next check time
+    Enum.map(deployments, fn deployment ->
+      next_check_at = Map.get(next_checks, deployment.id)
+
+      next_check_in =
+        case next_check_at do
+          nil -> nil
+          next_run_at -> format_time_remaining(next_run_at)
+        end
+
+      deployment
+      |> Map.put(:next_check_at, next_check_at)
+      |> Map.put(:next_check_in, next_check_in)
+    end)
+  end
+
+  defp format_time_remaining(nil), do: nil
+
+  defp format_time_remaining(next_run_at) do
+    now = DateTime.utc_now()
+    diff_seconds = DateTime.diff(next_run_at, now)
+
+    cond do
+      diff_seconds < 0 ->
+        "Running..."
+
+      diff_seconds < 60 ->
+        "< 1 min"
+
+      diff_seconds < 3600 ->
+        minutes = div(diff_seconds, 60)
+        "#{minutes} min"
+
+      diff_seconds < 86400 ->
+        hours = div(diff_seconds, 3600)
+        minutes = rem(div(diff_seconds, 60), 60)
+
+        if minutes > 0 do
+          "#{hours}h #{minutes}m"
+        else
+          "#{hours}h"
+        end
+
+      true ->
+        days = div(diff_seconds, 86400)
+        "#{days}d"
+    end
+  end
+
+  defp format_iso8601(nil), do: nil
+  defp format_iso8601(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp format_iso8601(%NaiveDateTime{} = dt) do
+    dt
+    |> DateTime.from_naive!("Etc/UTC")
+    |> DateTime.to_iso8601()
+  end
+  defp format_iso8601(other), do: to_string(other)
 
   @impl true
   def handle_event("check-health", %{"id" => id}, socket) do
@@ -410,23 +514,42 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   end
 
   @impl true
+  def handle_info({:check_completed, %{service_id: service_id}}, socket) do
+    # Only reload if this update is for our service
+    if service_id == socket.assigns.service.id do
+      {:noreply, load_deployments(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_async(:check_health, {:ok, result}, socket) do
     case result do
-      {:ok, _updated} ->
+      {:ok, updated} ->
+        # Broadcast PubSub update
+        DeploymentPubSub.broadcast_check_completed(updated, :health)
+
         {:noreply,
          socket
          |> assign(:checking_health, nil)
          |> load_deployments()
          |> put_flash(:info, "Health check completed")}
 
-      {:warning, reason, _deployment} ->
+      {:warning, reason, deployment} ->
+        # Broadcast PubSub update
+        DeploymentPubSub.broadcast_check_completed(deployment, :health)
+
         {:noreply,
          socket
          |> assign(:checking_health, nil)
          |> load_deployments()
          |> put_flash(:error, "Health warning: #{format_reason(reason)}")}
 
-      {:error, reason, _deployment} ->
+      {:error, reason, deployment} ->
+        # Broadcast PubSub update
+        DeploymentPubSub.broadcast_check_completed(deployment, :health)
+
         {:noreply,
          socket
          |> assign(:checking_health, nil)
@@ -446,20 +569,29 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   @impl true
   def handle_async(:check_version, {:ok, result}, socket) do
     case result do
-      {:ok, _updated} ->
+      {:ok, updated} ->
+        # Broadcast PubSub update
+        DeploymentPubSub.broadcast_check_completed(updated, :version)
+
         {:noreply,
          socket
          |> assign(:checking_version, nil)
          |> load_deployments()
          |> put_flash(:info, "Version check updated")}
 
-      {:skipped, _deployment} ->
+      {:skipped, deployment} ->
+        # Broadcast PubSub update (even for skipped)
+        DeploymentPubSub.broadcast_check_completed(deployment, :version)
+
         {:noreply,
          socket
          |> assign(:checking_version, nil)
          |> put_flash(:info, "Version check is disabled for this deployment")}
 
-      {:error, reason, _deployment} ->
+      {:error, reason, deployment} ->
+        # Broadcast PubSub update
+        DeploymentPubSub.broadcast_check_completed(deployment, :version)
+
         {:noreply,
          socket
          |> assign(:checking_version, nil)

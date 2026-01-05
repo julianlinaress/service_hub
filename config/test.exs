@@ -10,7 +10,7 @@ config :bcrypt_elixir, :log_rounds, 1
 # Run `mix help test` for more information.
 config :service_hub, ServiceHub.Repo,
   username: "postgres",
-  password: "postgres",
+  password: "1nf0rm3",
   hostname: "localhost",
   database: "service_hub_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,

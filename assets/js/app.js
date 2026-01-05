@@ -26,10 +26,63 @@ import {hooks as colocatedHooks} from "phoenix-colocated/service_hub"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+const countdownHook = {
+  mounted() {
+    this.offsetMs = this.computeOffsetMs()
+    this.update()
+    this.timer = setInterval(() => this.update(), 1000)
+  },
+  updated() {
+    this.offsetMs = this.computeOffsetMs()
+    this.update()
+  },
+  destroyed() {
+    if (this.timer) clearInterval(this.timer)
+  },
+  computeOffsetMs() {
+    const serverUtc = this.el.dataset.serverUtc
+    if (!serverUtc) return 0
+    const serverMs = Date.parse(serverUtc)
+    return Number.isNaN(serverMs) ? 0 : serverMs - Date.now()
+  },
+  update() {
+    const nextRunAt = this.el.dataset.nextRunAt
+    if (!nextRunAt) return
+    const targetMs = Date.parse(nextRunAt)
+    if (Number.isNaN(targetMs)) return
+
+    const nowMs = Date.now() + (this.offsetMs || 0)
+    const diffSeconds = Math.floor((targetMs - nowMs) / 1000)
+    this.el.textContent = this.formatRemaining(diffSeconds)
+  },
+  formatRemaining(diffSeconds) {
+    if (diffSeconds < 0) return "Running..."
+    if (diffSeconds < 3600) {
+      const minutes = Math.floor(diffSeconds / 60)
+      const seconds = Math.max(0, diffSeconds % 60)
+      return `${this.pad2(minutes)}:${this.pad2(seconds)}`
+    }
+    if (diffSeconds < 86400) {
+      const hours = Math.floor(diffSeconds / 3600)
+      const minutes = Math.floor((diffSeconds % 3600) / 60)
+      const seconds = Math.max(0, diffSeconds % 60)
+      return `${this.pad2(hours)}:${this.pad2(minutes)}:${this.pad2(seconds)}`
+    }
+    const days = Math.floor(diffSeconds / 86400)
+    const hours = Math.floor((diffSeconds % 86400) / 3600)
+    const minutes = Math.floor((diffSeconds % 3600) / 60)
+    const seconds = Math.max(0, diffSeconds % 60)
+    return `${days}d ${this.pad2(hours)}:${this.pad2(minutes)}:${this.pad2(seconds)}`
+  },
+  pad2(value) {
+    return String(value).padStart(2, "0")
+  },
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, Countdown: countdownHook},
 })
 
 // Show progress bar on live navigation and form submits
@@ -80,4 +133,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

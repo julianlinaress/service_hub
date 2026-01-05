@@ -7,6 +7,7 @@ defmodule ServiceHub.Deployments do
 
   alias ServiceHub.Accounts.Scope
   alias ServiceHub.Deployments.Deployment
+  alias ServiceHub.Automations.AutomationTarget
   alias ServiceHub.Repo
   alias ServiceHub.Services.Service
 
@@ -33,6 +34,8 @@ defmodule ServiceHub.Deployments do
     with {:ok, service} <- fetch_service(scope, service_id_from_attrs(attrs)),
          changeset <- Deployment.changeset(%Deployment{service_id: service.id}, attrs),
          {:ok, deployment} <- Repo.insert(changeset) do
+      # Sync automation targets after creation
+      sync_automation_targets(deployment)
       {:ok, Repo.preload(deployment, service: :provider)}
     end
   end
@@ -41,16 +44,29 @@ defmodule ServiceHub.Deployments do
     deployment = preload_service(deployment)
     true = deployment.service.provider.user_id == scope.user.id
 
-    deployment
-    |> Deployment.changeset(attrs)
-    |> Repo.update()
+    with {:ok, updated} <-
+           deployment
+           |> Deployment.changeset(attrs)
+           |> Repo.update() do
+      # Sync automation targets after update
+      sync_automation_targets(updated)
+      {:ok, updated}
+    end
   end
 
   def delete_deployment(%Scope{} = scope, %Deployment{} = deployment) do
     deployment = preload_service(deployment)
     true = deployment.service.provider.user_id == scope.user.id
 
-    Repo.delete(deployment)
+    Repo.transaction(fn ->
+      # Delete automation targets first
+      delete_automation_targets(deployment)
+      # Then delete deployment
+      case Repo.delete(deployment) do
+        {:ok, deleted} -> deleted
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
   end
 
   def change_deployment(%Scope{} = scope, %Deployment{} = deployment, attrs \\ %{}) do
@@ -108,4 +124,109 @@ defmodule ServiceHub.Deployments do
   defp service_id_from_attrs(%{"service_id" => id}) when is_integer(id), do: id
   defp service_id_from_attrs(%{service_id: id}) when is_integer(id), do: id
   defp service_id_from_attrs(_), do: nil
+
+  @doc """
+  Syncs automation_targets for a deployment based on its automatic_checks_enabled
+  and version_check_enabled settings.
+
+  Creates/updates automation targets for:
+  - deployment_health (if automatic_checks_enabled)
+  - deployment_version (if automatic_checks_enabled AND version_check_enabled)
+
+  Removes targets if checks are disabled.
+  """
+  def sync_automation_targets(%Deployment{} = deployment) do
+    if deployment.automatic_checks_enabled do
+      # Upsert health check target
+      upsert_automation_target(
+        "deployment_health",
+        "deployment",
+        deployment.id,
+        deployment.check_interval_minutes
+      )
+
+      # Upsert version check target if version checks are enabled
+      if deployment.version_check_enabled do
+        upsert_automation_target(
+          "deployment_version",
+          "deployment",
+          deployment.id,
+          deployment.check_interval_minutes
+        )
+      else
+        # Remove version check target if version checks are disabled
+        delete_automation_target("deployment_version", "deployment", deployment.id)
+      end
+    else
+      # Remove all automation targets if automatic checks are disabled
+      delete_automation_targets(deployment)
+    end
+  end
+
+  defp upsert_automation_target(automation_id, target_type, target_id, interval_minutes) do
+    now = DateTime.utc_now(:microsecond)
+
+    # Try to find existing target
+    existing =
+      from(at in AutomationTarget,
+        where:
+          at.automation_id == ^automation_id and at.target_type == ^target_type and
+            at.target_id == ^target_id
+      )
+      |> Repo.one()
+
+    case existing do
+      nil ->
+        # Create new target
+        %AutomationTarget{}
+        |> AutomationTarget.changeset(%{
+          automation_id: automation_id,
+          target_type: target_type,
+          target_id: target_id,
+          enabled: true,
+          interval_minutes: interval_minutes,
+          next_run_at: now
+        })
+        |> Repo.insert()
+
+      %AutomationTarget{} = target ->
+        # Update existing target
+        attrs = %{
+          enabled: true,
+          interval_minutes: interval_minutes
+        }
+
+        attrs =
+          if target.interval_minutes != interval_minutes or target.enabled == false or
+               is_nil(target.next_run_at) do
+            Map.put(attrs, :next_run_at, now)
+          else
+            attrs
+          end
+
+        target
+        |> AutomationTarget.changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
+  defp delete_automation_target(automation_id, target_type, target_id) do
+    from(at in AutomationTarget,
+      where:
+        at.automation_id == ^automation_id and at.target_type == ^target_type and
+          at.target_id == ^target_id
+    )
+    |> Repo.delete_all()
+  end
+
+  @doc """
+  Deletes all automation targets for a deployment.
+  Used when deployment is deleted or automatic checks are disabled.
+  """
+  def delete_automation_targets(%Deployment{} = deployment) do
+    from(at in AutomationTarget,
+      where: at.target_type == "deployment" and at.target_id == ^deployment.id
+    )
+    |> Repo.delete_all()
+  end
 end

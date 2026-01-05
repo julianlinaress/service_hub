@@ -28,20 +28,20 @@ defmodule ServiceHubWeb.ProviderTypeLiveTest do
     setup [:create_provider_type]
 
     test "lists all provider_types", %{conn: conn, provider_type: provider_type} do
-      {:ok, _index_live, html} = live(conn, ~p"/provider_types")
+      {:ok, _index_live, html} = live(conn, ~p"/config/provider-types")
 
-      assert html =~ "Listing Provider types"
+      assert html =~ "Provider Types"
       assert html =~ provider_type.name
     end
 
     test "saves new provider_type", %{conn: conn} do
-      {:ok, index_live, _html} = live(conn, ~p"/provider_types")
+      {:ok, index_live, _html} = live(conn, ~p"/config/provider-types")
 
       assert {:ok, form_live, _} =
                index_live
-               |> element("a", "New Provider type")
+               |> element("a", "New Type")
                |> render_click()
-               |> follow_redirect(conn, ~p"/provider_types/new")
+               |> follow_redirect(conn, ~p"/config/provider-types/new")
 
       assert render(form_live) =~ "New Provider type"
 
@@ -53,7 +53,7 @@ defmodule ServiceHubWeb.ProviderTypeLiveTest do
                form_live
                |> form("#provider_type-form", provider_type: @create_attrs)
                |> render_submit()
-               |> follow_redirect(conn, ~p"/provider_types")
+               |> follow_redirect(conn, ~p"/config/provider-types")
 
       html = render(index_live)
       assert html =~ "Provider type created successfully"
@@ -61,13 +61,15 @@ defmodule ServiceHubWeb.ProviderTypeLiveTest do
     end
 
     test "updates provider_type in listing", %{conn: conn, provider_type: provider_type} do
-      {:ok, index_live, _html} = live(conn, ~p"/provider_types")
+      {:ok, index_live, _html} = live(conn, ~p"/config/provider-types")
+
+      dom_id = "provider_types-#{provider_type.id}"
 
       assert {:ok, form_live, _html} =
                index_live
-               |> element("#provider_types-#{provider_type.id} a", "Edit")
+               |> element("##{dom_id}")
                |> render_click()
-               |> follow_redirect(conn, ~p"/provider_types/#{provider_type}/edit")
+               |> follow_redirect(conn, ~p"/config/provider-types/#{provider_type}/edit")
 
       assert render(form_live) =~ "Edit Provider type"
 
@@ -79,7 +81,7 @@ defmodule ServiceHubWeb.ProviderTypeLiveTest do
                form_live
                |> form("#provider_type-form", provider_type: @update_attrs)
                |> render_submit()
-               |> follow_redirect(conn, ~p"/provider_types")
+               |> follow_redirect(conn, ~p"/config/provider-types")
 
       html = render(index_live)
       assert html =~ "Provider type updated successfully"
@@ -87,13 +89,15 @@ defmodule ServiceHubWeb.ProviderTypeLiveTest do
     end
 
     test "deletes provider_type in listing", %{conn: conn, provider_type: provider_type} do
-      {:ok, index_live, _html} = live(conn, ~p"/provider_types")
+      {:ok, index_live, _html} = live(conn, ~p"/config/provider-types")
+
+      dom_id = "provider_types-#{provider_type.id}"
 
       assert index_live
-             |> element("#provider_types-#{provider_type.id} a", "Delete")
+             |> element("##{dom_id} button")
              |> render_click()
 
-      refute has_element?(index_live, "#provider_types-#{provider_type.id}")
+      refute has_element?(index_live, "##{dom_id}")
     end
   end
 
@@ -101,20 +105,23 @@ defmodule ServiceHubWeb.ProviderTypeLiveTest do
     setup [:create_provider_type]
 
     test "displays provider_type", %{conn: conn, provider_type: provider_type} do
-      {:ok, _show_live, html} = live(conn, ~p"/provider_types/#{provider_type}")
+      {:ok, _show_live, html} = live(conn, ~p"/config/provider-types/#{provider_type}")
 
-      assert html =~ "Show Provider type"
+      assert html =~ "Provider type"
       assert html =~ provider_type.name
     end
 
     test "updates provider_type and returns to show", %{conn: conn, provider_type: provider_type} do
-      {:ok, show_live, _html} = live(conn, ~p"/provider_types/#{provider_type}")
+      {:ok, show_live, _html} = live(conn, ~p"/config/provider-types/#{provider_type}")
 
       assert {:ok, form_live, _} =
                show_live
-               |> element("a", "Edit")
+               |> element("a", "Edit provider_type")
                |> render_click()
-               |> follow_redirect(conn, ~p"/provider_types/#{provider_type}/edit?return_to=show")
+               |> follow_redirect(
+                 conn,
+                 ~p"/config/provider-types/#{provider_type}/edit?return_to=show"
+               )
 
       assert render(form_live) =~ "Edit Provider type"
 
@@ -126,7 +133,7 @@ defmodule ServiceHubWeb.ProviderTypeLiveTest do
                form_live
                |> form("#provider_type-form", provider_type: @update_attrs)
                |> render_submit()
-               |> follow_redirect(conn, ~p"/provider_types/#{provider_type}")
+               |> follow_redirect(conn, ~p"/config/provider-types/#{provider_type}")
 
       html = render(show_live)
       assert html =~ "Provider type updated successfully"

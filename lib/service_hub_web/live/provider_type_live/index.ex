@@ -58,7 +58,7 @@ defmodule ServiceHubWeb.ProviderTypeLive.Index do
         </div>
 
         <div
-          :if={Enum.empty?(@streams.provider_types)}
+          :if={Enum.empty?(@streams.provider_types.inserts)}
           class="border border-dashed border-base-300 rounded-lg p-8 text-center"
         >
           <.icon name="hero-document-text" class="w-12 h-12 mx-auto text-base-content/30 mb-2" />

@@ -12,8 +12,10 @@ defmodule ServiceHub.Application do
       ServiceHub.Repo,
       {DNSCluster, query: Application.get_env(:service_hub, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: ServiceHub.PubSub},
-      # Start a worker by calling: ServiceHub.Worker.start_link(arg)
-      # {ServiceHub.Worker, arg},
+      # Task supervisor for automation runners
+      {Task.Supervisor, name: ServiceHub.TaskSupervisor},
+      # Automation scheduler
+      {ServiceHub.Automations.Scheduler, []},
       # Start to serve requests, typically the last entry
       ServiceHubWeb.Endpoint
     ]

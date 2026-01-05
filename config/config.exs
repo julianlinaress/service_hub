@@ -24,6 +24,22 @@ config :service_hub,
   ecto_repos: [ServiceHub.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Configure automations
+config :service_hub, ServiceHub.Automations.Scheduler,
+  poll_interval_ms: 10_000,
+  poll_jitter_ms: 10_000,
+  batch_size: 50,
+  global_concurrency: 10,
+  lease_ttl_min_minutes: 10,
+  lease_ttl_multiplier: 2
+
+config :service_hub, ServiceHub.Automations,
+  automations: [
+    ServiceHub.Automations.HealthCheck,
+    ServiceHub.Automations.VersionCheck,
+    ServiceHub.Automations.RetentionCleaner
+  ]
+
 # Configure the endpoint
 config :service_hub, ServiceHubWeb.Endpoint,
   url: [host: "localhost"],

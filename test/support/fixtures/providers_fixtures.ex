@@ -45,15 +45,21 @@ defmodule ServiceHub.ProvidersFixtures do
   Generate a auth_type.
   """
   def auth_type_fixture(scope, attrs \\ %{}) do
+    # Use a valid auth type key from the registry
     defaults = %{
-      key: "pat-#{System.unique_integer([:positive])}",
-      name: "Personal Access Token",
-      required_fields: %{"token" => %{"label" => "Token", "type" => "password"}}
+      key: "token"
     }
 
     attrs = Enum.into(attrs, defaults)
+    key = Map.get(attrs, :key) || Map.get(attrs, "key")
 
-    {:ok, auth_type} = ServiceHub.Providers.create_auth_type(scope, attrs)
-    auth_type
+    case ServiceHub.Repo.get_by(ServiceHub.Providers.AuthType, key: key) do
+      %ServiceHub.Providers.AuthType{} = auth_type ->
+        auth_type
+
+      nil ->
+        {:ok, auth_type} = ServiceHub.Providers.create_auth_type(scope, attrs)
+        auth_type
+    end
   end
 end

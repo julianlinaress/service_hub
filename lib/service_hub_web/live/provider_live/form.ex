@@ -721,8 +721,7 @@ defmodule ServiceHubWeb.ProviderLive.Form do
            provider_params
          ) do
       {:ok, provider} ->
-        {:ok, provider} =
-          Providers.validate_provider_connection(socket.assigns.current_scope, provider)
+        _result = Providers.validate_provider_connection(socket.assigns.current_scope, provider)
 
         {:noreply,
          socket

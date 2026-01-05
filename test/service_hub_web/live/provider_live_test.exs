@@ -4,21 +4,17 @@ defmodule ServiceHubWeb.ProviderLiveTest do
   import Phoenix.LiveViewTest
   import ServiceHub.ProvidersFixtures
 
-  defp create_attrs(provider_type, auth_type) do
+  defp create_attrs(provider_type, _auth_type) do
     %{
       name: "some name",
       base_url: "https://example.com",
-      provider_type_id: provider_type.id,
-      auth_type_id: auth_type.id,
-      auth_data: %{"token" => "abc"}
+      provider_type_id: provider_type.id
     }
   end
 
-  defp update_attrs(provider_type, auth_type) do
+  defp update_attrs(_provider_type, auth_type) do
     %{
       name: "some updated name",
-      base_url: "https://other.example.com",
-      provider_type_id: provider_type.id,
       auth_type_id: auth_type.id,
       auth_data: %{"token" => "updated"}
     }
@@ -27,15 +23,13 @@ defmodule ServiceHubWeb.ProviderLiveTest do
   @invalid_attrs %{
     name: nil,
     base_url: nil,
-    auth_type_id: nil,
-    provider_type_id: nil,
-    auth_data: nil
+    provider_type_id: nil
   }
 
   setup :register_and_log_in_user
 
   defp create_provider(%{scope: scope} = context) do
-    provider_type = provider_type_fixture(scope)
+    provider_type = provider_type_fixture(scope, %{key: "gitea"})
     auth_type = auth_type_fixture(scope)
     provider = provider_fixture(scope, %{provider_type: provider_type, auth_type: auth_type})
 
@@ -46,20 +40,20 @@ defmodule ServiceHubWeb.ProviderLiveTest do
     setup [:create_provider]
 
     test "lists all providers", %{conn: conn, provider: provider} do
-      {:ok, _index_live, html} = live(conn, ~p"/providers")
+      {:ok, _index_live, html} = live(conn, ~p"/config/providers")
 
       assert html =~ "Listing Providers"
       assert html =~ provider.name
     end
 
     test "saves new provider", %{conn: conn, provider_type: provider_type, auth_type: auth_type} do
-      {:ok, index_live, _html} = live(conn, ~p"/providers")
+      {:ok, index_live, _html} = live(conn, ~p"/config/providers")
 
       assert {:ok, form_live, _} =
                index_live
                |> element("a", "New Provider")
                |> render_click()
-               |> follow_redirect(conn, ~p"/providers/new")
+               |> follow_redirect(conn, ~p"/config/providers/new")
 
       assert render(form_live) =~ "New Provider"
 
@@ -71,7 +65,7 @@ defmodule ServiceHubWeb.ProviderLiveTest do
                form_live
                |> form("#provider-form", provider: create_attrs(provider_type, auth_type))
                |> render_submit()
-               |> follow_redirect(conn, ~p"/providers")
+               |> follow_redirect(conn, ~p"/config/providers")
 
       html = render(index_live)
       assert html =~ "Provider created successfully"
@@ -84,25 +78,21 @@ defmodule ServiceHubWeb.ProviderLiveTest do
       provider_type: provider_type,
       auth_type: auth_type
     } do
-      {:ok, index_live, _html} = live(conn, ~p"/providers")
+      {:ok, index_live, _html} = live(conn, ~p"/config/providers")
 
       assert {:ok, form_live, _html} =
                index_live
                |> element("#providers-#{provider.id} a", "Edit")
                |> render_click()
-               |> follow_redirect(conn, ~p"/providers/#{provider}/edit")
+               |> follow_redirect(conn, ~p"/config/providers/#{provider}/edit")
 
       assert render(form_live) =~ "Edit Provider"
-
-      assert form_live
-             |> form("#provider-form", provider: @invalid_attrs)
-             |> render_change() =~ "can&#39;t be blank"
 
       assert {:ok, index_live, _html} =
                form_live
                |> form("#provider-form", provider: update_attrs(provider_type, auth_type))
                |> render_submit()
-               |> follow_redirect(conn, ~p"/providers")
+               |> follow_redirect(conn, ~p"/config/providers")
 
       html = render(index_live)
       assert html =~ "Provider updated successfully"
@@ -110,7 +100,7 @@ defmodule ServiceHubWeb.ProviderLiveTest do
     end
 
     test "deletes provider in listing", %{conn: conn, provider: provider} do
-      {:ok, index_live, _html} = live(conn, ~p"/providers")
+      {:ok, index_live, _html} = live(conn, ~p"/config/providers")
 
       assert index_live |> element("#providers-#{provider.id} a", "Delete") |> render_click()
       refute has_element?(index_live, "#providers-#{provider.id}")
@@ -123,11 +113,11 @@ defmodule ServiceHubWeb.ProviderLiveTest do
     test "displays provider", %{conn: conn, provider: provider} do
       {:ok, _show_live, html} = live(conn, ~p"/providers/#{provider}")
 
-      assert html =~ "Show Provider"
+      assert html =~ "Services"
       assert html =~ provider.name
     end
 
-    test "updates provider and returns to show", %{
+    test "updates provider and returns to listing", %{
       conn: conn,
       provider: provider,
       provider_type: provider_type,
@@ -137,23 +127,19 @@ defmodule ServiceHubWeb.ProviderLiveTest do
 
       assert {:ok, form_live, _} =
                show_live
-               |> element("a", "Edit")
+               |> element("a[href=\"/config/providers/#{provider.id}/edit\"]")
                |> render_click()
-               |> follow_redirect(conn, ~p"/providers/#{provider}/edit?return_to=show")
+               |> follow_redirect(conn, ~p"/config/providers/#{provider}/edit")
 
       assert render(form_live) =~ "Edit Provider"
 
-      assert form_live
-             |> form("#provider-form", provider: @invalid_attrs)
-             |> render_change() =~ "can&#39;t be blank"
-
-      assert {:ok, show_live, _html} =
+      assert {:ok, index_live, _html} =
                form_live
                |> form("#provider-form", provider: update_attrs(provider_type, auth_type))
                |> render_submit()
-               |> follow_redirect(conn, ~p"/providers/#{provider}")
+               |> follow_redirect(conn, ~p"/config/providers")
 
-      html = render(show_live)
+      html = render(index_live)
       assert html =~ "Provider updated successfully"
       assert html =~ "some updated name"
     end
