@@ -82,6 +82,11 @@ defmodule ServiceHubWeb.Router do
       live "/config/auth-types/:id", AuthTypeLive.Show, :show
       live "/config/auth-types/:id/edit", AuthTypeLive.Form, :edit
 
+      # Notifications
+      live "/config/notifications", NotificationLive.Index, :index
+      live "/config/notifications/new", NotificationLive.Index, :new
+      live "/config/notifications/:id/edit", NotificationLive.Index, :edit
+
       # User settings
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email

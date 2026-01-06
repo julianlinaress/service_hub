@@ -7,6 +7,7 @@ defmodule ServiceHub.Automations.HealthCheck do
 
   alias ServiceHub.Deployments.Deployment
   alias ServiceHub.Checks.Health
+  alias ServiceHub.Notifications.EventHandler
   alias ServiceHub.Repo
   import Ecto.Query
 
@@ -34,7 +35,13 @@ defmodule ServiceHub.Automations.HealthCheck do
 
       %Deployment{} = deployment ->
         # Run the health check
-        case Health.run(deployment, deployment.service) do
+        result = Health.run(deployment, deployment.service)
+
+        # Trigger notifications based on result
+        trigger_health_notification(deployment, result)
+
+        # Return automation result
+        case result do
           {:ok, _updated_deployment} ->
             {:ok, "Health check passed"}
 
@@ -55,4 +62,50 @@ defmodule ServiceHub.Automations.HealthCheck do
 
   @impl true
   def concurrency_limit, do: 20
+
+  # Private Functions
+
+  defp trigger_health_notification(deployment, result) do
+    {severity, message, status_text} =
+      case result do
+        {:ok, _} ->
+          {"recovery", "Health check passed", "ok"}
+
+        {:warning, reason, _} ->
+          {"warning", "Health check warning: #{format_reason(reason)}", "warning"}
+
+        {:error, reason, _} ->
+          {"alert", "Health check failed: #{format_reason(reason)}", "down"}
+      end
+
+    event_payload = %{
+      "service_id" => deployment.service_id,
+      "deployment_id" => deployment.id,
+      "check_type" => "health",
+      "message" => message,
+      "metadata" => %{
+        "status" => status_text,
+        "host" => deployment.host,
+        "env" => deployment.env
+      }
+    }
+
+    event_tags = %{
+      "source" => "automatic"
+    }
+
+    # Emit FYI event for persistence
+    event_name = "health.#{severity}"
+    FYI.emit(event_name, event_payload, tags: event_tags)
+
+    # Handle event routing and delivery
+    EventHandler.handle_event(%{
+      name: event_name,
+      payload: event_payload,
+      tags: event_tags
+    })
+  end
+
+  defp format_reason({:unexpected_status, status}), do: "unexpected status #{status}"
+  defp format_reason({:error, reason}), do: inspect(reason)
 end

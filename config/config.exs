@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :fyi, persist_events: true
+
 config :service_hub, :scopes,
   user: [
     default: true,
