@@ -30,6 +30,14 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
           <div class="flex gap-2">
             <.button
               :if={@live_action == :show}
+              navigate={~p"/providers/#{@provider.id}/services/#{@service.id}/notifications"}
+              variant="ghost"
+              size="sm"
+            >
+              <.icon name="hero-bell" class="w-4 h-4" /> Notifications
+            </.button>
+            <.button
+              :if={@live_action == :show}
               navigate={~p"/providers/#{@provider.id}/services/#{@service.id}/settings"}
               variant="ghost"
               size="sm"
@@ -240,6 +248,33 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
           </div>
 
           <div
+            :if={@live_action == :notifications}
+            id="notification-settings"
+            class="fixed inset-0 z-50 flex items-start justify-center bg-base-300/40 backdrop-blur-sm overflow-auto"
+          >
+            <div class="bg-base-100 border border-base-300 shadow-xl rounded-lg w-full max-w-3xl m-4">
+              <div class="flex items-center justify-between p-4 border-b border-base-200">
+                <h3 class="text-lg font-semibold">Notification Settings</h3>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm"
+                  phx-click={hide_notifications(@provider, @service)}
+                >
+                  <.icon name="hero-x-mark" class="w-4 h-4" />
+                </button>
+              </div>
+              <div class="p-4">
+                <.live_component
+                  module={ServiceHubWeb.ServiceLive.NotificationSettings}
+                  id="notification-settings-component"
+                  service={@service}
+                  current_scope={@current_scope}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
             :if={@show_deployment_modal}
             id="deployment-modal"
             class="fixed inset-0 z-50 flex items-start justify-center bg-base-300/40 backdrop-blur-sm overflow-auto"
@@ -338,6 +373,15 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     end
   end
 
+  defp apply_action(socket, :notifications, %{"id" => id}) do
+    service = Services.get_service!(socket.assigns.current_scope, id)
+
+    socket
+    |> assign(:page_title, "Notification Settings")
+    |> assign(:service, service)
+    |> load_deployments()
+  end
+
   defp load_service(socket, %{"id" => id}) do
     Services.get_service!(socket.assigns.current_scope, id)
   end
@@ -351,6 +395,10 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   end
 
   defp hide_settings(provider, service) do
+    JS.patch(~p"/providers/#{provider.id}/services/#{service.id}")
+  end
+
+  defp hide_notifications(provider, service) do
     JS.patch(~p"/providers/#{provider.id}/services/#{service.id}")
   end
 
@@ -500,6 +548,10 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     {:noreply, close_deployment_modal(socket)}
   end
 
+  def handle_event("stop-propagation", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_info({DeploymentForm, {:saved, _deployment}}, socket) do
     {:noreply,
@@ -511,6 +563,12 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   @impl true
   def handle_info({:deployment_modal, :close}, socket) do
     {:noreply, close_deployment_modal(socket)}
+  end
+
+  def handle_info({:rule_saved, _rule}, socket) do
+    # Rule was saved by the notification settings component
+    # No action needed in the parent LiveView
+    {:noreply, socket}
   end
 
   @impl true
