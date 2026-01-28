@@ -5,7 +5,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   use ServiceHubWeb, :live_view
 
   alias ServiceHub.{Deployments, Providers, Services}
-  alias ServiceHub.Checks.{Health, Version}
+  alias ServiceHub.Checks.{Health, Version, NotificationTrigger}
   alias ServiceHub.Deployments.PubSub, as: DeploymentPubSub
   alias Phoenix.LiveView.JS
   alias ServiceHubWeb.Components.Status.HealthBadge
@@ -583,6 +583,17 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   @impl true
   def handle_async(:check_health, {:ok, result}, socket) do
+    # Get deployment from result (different positions for ok/warning/error)
+    deployment =
+      case result do
+        {:ok, updated} -> updated
+        {:warning, _reason, dep} -> dep
+        {:error, _reason, dep} -> dep
+      end
+
+    # Trigger notifications for manual check
+    NotificationTrigger.trigger_health_notification(deployment, result, "manual")
+
     case result do
       {:ok, updated} ->
         # Broadcast PubSub update
@@ -626,6 +637,17 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   @impl true
   def handle_async(:check_version, {:ok, result}, socket) do
+    # Get deployment from result
+    deployment =
+      case result do
+        {:ok, updated} -> updated
+        {:skipped, dep} -> dep
+        {:error, _reason, dep} -> dep
+      end
+
+    # Trigger notifications for manual check
+    NotificationTrigger.trigger_version_notification(deployment, result, "manual")
+
     case result do
       {:ok, updated} ->
         # Broadcast PubSub update

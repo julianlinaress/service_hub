@@ -119,8 +119,35 @@ defmodule ServiceHub.Checks.Health do
       |> String.trim()
       |> String.replace_leading("https://", "")
       |> String.replace_leading("http://", "")
+      |> encode_idn_with_path()
 
     String.replace(template, "{{host}}", clean_host)
+  end
+
+  # Convert internationalized domain names (IDN) to ASCII-compatible encoding (Punycode)
+  # Handles hosts with path components like "example.com/path"
+  # e.g., "idicañada.com.ar/path" -> "xn--idicaada-s3a.com.ar/path"
+  defp encode_idn_with_path(host) do
+    case String.split(host, "/", parts: 2) do
+      [domain] ->
+        # No path component, just encode the domain
+        encode_idn(domain)
+
+      [domain, path] ->
+        # Has path component, encode only the domain and rejoin
+        encoded_domain = encode_idn(domain)
+        "#{encoded_domain}/#{path}"
+    end
+  end
+
+  defp encode_idn(domain) do
+    domain
+    |> to_charlist()
+    |> :idna.encode()
+    |> to_string()
+  rescue
+    # If idna library throws an error, use the original domain
+    _ -> domain
   end
 
   defp result_outcome({:ok, _details}), do: {:ok, :healthy}

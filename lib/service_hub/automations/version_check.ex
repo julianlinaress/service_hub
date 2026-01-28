@@ -7,6 +7,7 @@ defmodule ServiceHub.Automations.VersionCheck do
 
   alias ServiceHub.Deployments.Deployment
   alias ServiceHub.Checks.Version
+  alias ServiceHub.Checks.NotificationTrigger
   alias ServiceHub.Repo
   import Ecto.Query
 
@@ -35,7 +36,13 @@ defmodule ServiceHub.Automations.VersionCheck do
 
       %Deployment{} = deployment ->
         # Run the version check
-        case Version.run(deployment, deployment.service) do
+        result = Version.run(deployment, deployment.service)
+
+        # Trigger notifications for version changes
+        trigger_version_notification(deployment, result)
+
+        # Return automation result
+        case result do
           {:ok, _updated_deployment} ->
             {:ok, "Version check passed"}
 
@@ -57,4 +64,10 @@ defmodule ServiceHub.Automations.VersionCheck do
 
   @impl true
   def concurrency_limit, do: 10
+
+  # Private Functions
+
+  defp trigger_version_notification(deployment, result) do
+    NotificationTrigger.trigger_version_notification(deployment, result, "automatic")
+  end
 end

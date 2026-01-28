@@ -55,9 +55,9 @@
   --depth: 1;
   --noise: 0;
   /* Provider brand colors - dark theme */
-  --color-github: oklch(80% 0.02 264);
-  --color-github-content: oklch(20% 0.01 264);
-  --color-gitea: oklch(65% 0.15 155);
+  --color-github: #010409;
+  --color-github-content: white;
+  --color-gitea: #1b1f23;
   --color-gitea-content: oklch(98% 0.01 155);
 }
 
