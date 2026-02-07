@@ -10,6 +10,7 @@ defmodule ServiceHub.Notifications do
   alias ServiceHub.Accounts.Scope
   alias ServiceHub.Notifications.NotificationChannel
   alias ServiceHub.Notifications.ServiceNotificationRule
+  alias ServiceHub.Notifications.Telegram
   alias ServiceHub.Notifications.TelegramAccount
   alias ServiceHub.Notifications.TelegramDestination
   alias ServiceHub.Repo
@@ -75,6 +76,50 @@ defmodule ServiceHub.Notifications do
   """
   def change_channel(%Scope{} = _scope, %NotificationChannel{} = channel, attrs \\ %{}) do
     NotificationChannel.changeset(channel, attrs)
+  end
+
+  @doc """
+  Lists Telegram bot accounts available for the current user.
+  """
+  def list_telegram_accounts(%Scope{} = scope) do
+    TelegramAccount
+    |> where([a], a.user_id == ^scope.user.id)
+    |> order_by([a], asc: a.name, asc: a.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists Telegram destinations for a Telegram account belonging to current user.
+  """
+  def list_telegram_destinations(%Scope{} = scope, account_id) do
+    case get_telegram_account(scope, account_id) do
+      nil ->
+        []
+
+      account ->
+        TelegramDestination
+        |> where([d], d.telegram_account_id == ^account.id)
+        |> order_by([d], asc: d.title, asc: d.chat_ref)
+        |> Repo.all()
+    end
+  end
+
+  @doc """
+  Discovers Telegram destinations using either an existing account selection or a bot token.
+  """
+  def discover_telegram_destinations(%Scope{} = scope, channel_attrs)
+      when is_map(channel_attrs) do
+    with {:ok, account} <- resolve_discovery_account(scope, channel_attrs),
+         {:ok, _bot_info} <- Telegram.get_me(account.bot_token),
+         {:ok, updates} <- Telegram.get_updates(account.bot_token) do
+      updates
+      |> Telegram.extract_destinations_from_updates()
+      |> Enum.each(fn destination_attrs ->
+        find_or_create_telegram_destination(account.id, destination_attrs)
+      end)
+
+      {:ok, account, list_telegram_destinations(scope, account.id)}
+    end
   end
 
   # Service Notification Rules
@@ -194,6 +239,17 @@ defmodule ServiceHub.Notifications do
   end
 
   defp maybe_attach_telegram_refs(%Scope{} = scope, attrs) do
+    account_id = get_value(attrs, "telegram_account_id")
+    destination_id = get_value(attrs, "telegram_destination_id")
+
+    if present?(account_id) and present?(destination_id) do
+      attrs
+    else
+      maybe_attach_telegram_refs_from_config(scope, attrs)
+    end
+  end
+
+  defp maybe_attach_telegram_refs_from_config(%Scope{} = scope, attrs) do
     config = get_value(attrs, "config") || %{}
     token = get_value(config, "token")
     chat_ref = get_value(config, "chat_ref") || get_value(config, "chat_id")
@@ -232,20 +288,44 @@ defmodule ServiceHub.Notifications do
     Repo.get_by!(TelegramAccount, user_id: user_id, bot_token: token)
   end
 
-  defp find_or_create_telegram_destination(account_id, chat_ref) do
+  defp find_or_create_telegram_destination(account_id, chat_ref) when is_binary(chat_ref) do
+    find_or_create_telegram_destination(account_id, %{chat_ref: chat_ref})
+  end
+
+  defp find_or_create_telegram_destination(account_id, attrs) when is_map(attrs) do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
-    attrs = %{
+    chat_ref = get_value(attrs, "chat_ref")
+    chat_type = get_value(attrs, "chat_type")
+    title = get_value(attrs, "title")
+    username = get_value(attrs, "username")
+    thread_id = get_value(attrs, "message_thread_id")
+
+    row = %{
       telegram_account_id: account_id,
       chat_ref: chat_ref,
+      chat_type: chat_type,
+      title: title,
+      username: username,
+      message_thread_id: thread_id,
+      verified_at: now,
       inserted_at: now,
       updated_at: now
     }
 
     Repo.insert_all(
       TelegramDestination,
-      [attrs],
-      on_conflict: [set: [updated_at: now]],
+      [row],
+      on_conflict: [
+        set: [
+          chat_type: chat_type,
+          title: title,
+          username: username,
+          message_thread_id: thread_id,
+          verified_at: now,
+          updated_at: now
+        ]
+      ],
       conflict_target: [:telegram_account_id, :chat_ref]
     )
 
@@ -257,25 +337,87 @@ defmodule ServiceHub.Notifications do
     %{"chat_ref" => chat_ref, "parse_mode" => parse_mode}
   end
 
+  defp resolve_discovery_account(%Scope{} = scope, channel_attrs) do
+    config = get_value(channel_attrs, "config") || %{}
+    token = get_value(config, "token")
+    account_id = get_value(channel_attrs, "telegram_account_id")
+
+    cond do
+      present?(account_id) ->
+        case get_telegram_account(scope, account_id) do
+          nil -> {:error, :telegram_account_not_found}
+          account -> {:ok, account}
+        end
+
+      present?(token) ->
+        {:ok, find_or_create_telegram_account(scope.user.id, token)}
+
+      true ->
+        {:error, :telegram_credentials_required}
+    end
+  end
+
+  defp get_telegram_account(%Scope{} = scope, account_id) do
+    account_id = normalize_id(account_id)
+
+    if is_nil(account_id) do
+      nil
+    else
+      Repo.get_by(TelegramAccount, id: account_id, user_id: scope.user.id)
+    end
+  end
+
+  defp normalize_id(value) when is_integer(value), do: value
+
+  defp normalize_id(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {id, ""} -> id
+      _ -> nil
+    end
+  end
+
+  defp normalize_id(_), do: nil
+
   defp get_value(map, key) when is_map(map) do
-    Map.get(map, key) || Map.get(map, String.to_atom(key))
-  rescue
-    ArgumentError ->
-      Map.get(map, key)
+    atom_key = to_existing_atom(key)
+
+    case {Map.get(map, key), atom_key} do
+      {nil, nil} -> nil
+      {nil, atom} -> Map.get(map, atom)
+      {value, _} -> value
+    end
   end
 
   defp get_value(_, _), do: nil
 
   defp put_value(map, key, value) when is_map(map) do
+    has_atom_keys = Enum.any?(Map.keys(map), &is_atom/1)
+    has_string_keys = Enum.any?(Map.keys(map), &is_binary/1)
+
     if Map.has_key?(map, key) do
       Map.put(map, key, value)
     else
-      Map.put(map, String.to_atom(key), value)
+      case to_existing_atom(key) do
+        nil ->
+          Map.put(map, key, value)
+
+        atom_key ->
+          if Map.has_key?(map, atom_key) or (has_atom_keys and not has_string_keys) do
+            Map.put(map, atom_key, value)
+          else
+            Map.put(map, key, value)
+          end
+      end
     end
-  rescue
-    ArgumentError ->
-      Map.put(map, key, value)
   end
+
+  defp to_existing_atom(key) when is_binary(key) do
+    String.to_existing_atom(key)
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp to_existing_atom(_), do: nil
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(value), do: not is_nil(value)

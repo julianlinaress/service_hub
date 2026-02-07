@@ -29,6 +29,6 @@ defmodule ServiceHub.Notifications.TelegramDestination do
     destination
     |> cast(attrs, @cast_fields)
     |> validate_required(@required_fields)
-    |> unique_constraint([:telegram_account_id, :chat_ref, :message_thread_id])
+    |> unique_constraint([:telegram_account_id, :chat_ref])
   end
 end
