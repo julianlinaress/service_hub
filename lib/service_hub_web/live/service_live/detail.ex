@@ -5,7 +5,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   use ServiceHubWeb, :live_view
 
   alias ServiceHub.{Deployments, Providers, Services}
-  alias ServiceHub.Checks.{Health, Version}
+  alias ServiceHub.Checks.{Health, Version, NotificationTrigger}
   alias ServiceHub.Deployments.PubSub, as: DeploymentPubSub
   alias Phoenix.LiveView.JS
   alias ServiceHubWeb.Components.Status.HealthBadge
@@ -28,6 +28,14 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
           </div>
 
           <div class="flex gap-2">
+            <.button
+              :if={@live_action == :show}
+              navigate={~p"/providers/#{@provider.id}/services/#{@service.id}/notifications"}
+              variant="ghost"
+              size="sm"
+            >
+              <.icon name="hero-bell" class="w-4 h-4" /> Notifications
+            </.button>
             <.button
               :if={@live_action == :show}
               navigate={~p"/providers/#{@provider.id}/services/#{@service.id}/settings"}
@@ -240,6 +248,33 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
           </div>
 
           <div
+            :if={@live_action == :notifications}
+            id="notification-settings"
+            class="fixed inset-0 z-50 flex items-start justify-center bg-base-300/40 backdrop-blur-sm overflow-auto"
+          >
+            <div class="bg-base-100 border border-base-300 shadow-xl rounded-lg w-full max-w-3xl m-4">
+              <div class="flex items-center justify-between p-4 border-b border-base-200">
+                <h3 class="text-lg font-semibold">Notification Settings</h3>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm"
+                  phx-click={hide_notifications(@provider, @service)}
+                >
+                  <.icon name="hero-x-mark" class="w-4 h-4" />
+                </button>
+              </div>
+              <div class="p-4">
+                <.live_component
+                  module={ServiceHubWeb.ServiceLive.NotificationSettings}
+                  id="notification-settings-component"
+                  service={@service}
+                  current_scope={@current_scope}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
             :if={@show_deployment_modal}
             id="deployment-modal"
             class="fixed inset-0 z-50 flex items-start justify-center bg-base-300/40 backdrop-blur-sm overflow-auto"
@@ -338,6 +373,15 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     end
   end
 
+  defp apply_action(socket, :notifications, %{"id" => id}) do
+    service = Services.get_service!(socket.assigns.current_scope, id)
+
+    socket
+    |> assign(:page_title, "Notification Settings")
+    |> assign(:service, service)
+    |> load_deployments()
+  end
+
   defp load_service(socket, %{"id" => id}) do
     Services.get_service!(socket.assigns.current_scope, id)
   end
@@ -351,6 +395,10 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   end
 
   defp hide_settings(provider, service) do
+    JS.patch(~p"/providers/#{provider.id}/services/#{service.id}")
+  end
+
+  defp hide_notifications(provider, service) do
     JS.patch(~p"/providers/#{provider.id}/services/#{service.id}")
   end
 
@@ -438,11 +486,13 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   defp format_iso8601(nil), do: nil
   defp format_iso8601(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+
   defp format_iso8601(%NaiveDateTime{} = dt) do
     dt
     |> DateTime.from_naive!("Etc/UTC")
     |> DateTime.to_iso8601()
   end
+
   defp format_iso8601(other), do: to_string(other)
 
   @impl true
@@ -500,6 +550,10 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     {:noreply, close_deployment_modal(socket)}
   end
 
+  def handle_event("stop-propagation", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_info({DeploymentForm, {:saved, _deployment}}, socket) do
     {:noreply,
@@ -511,6 +565,12 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
   @impl true
   def handle_info({:deployment_modal, :close}, socket) do
     {:noreply, close_deployment_modal(socket)}
+  end
+
+  def handle_info({:rule_saved, _rule}, socket) do
+    # Rule was saved by the notification settings component
+    # No action needed in the parent LiveView
+    {:noreply, socket}
   end
 
   @impl true
@@ -525,6 +585,17 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   @impl true
   def handle_async(:check_health, {:ok, result}, socket) do
+    # Get deployment from result (different positions for ok/warning/error)
+    deployment =
+      case result do
+        {:ok, updated} -> updated
+        {:warning, _reason, dep} -> dep
+        {:error, _reason, dep} -> dep
+      end
+
+    # Trigger notifications for manual check
+    NotificationTrigger.trigger_health_notification(deployment, result, "manual")
+
     case result do
       {:ok, updated} ->
         # Broadcast PubSub update
@@ -568,6 +639,17 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   @impl true
   def handle_async(:check_version, {:ok, result}, socket) do
+    # Get deployment from result
+    deployment =
+      case result do
+        {:ok, updated} -> updated
+        {:skipped, dep} -> dep
+        {:error, _reason, dep} -> dep
+      end
+
+    # Trigger notifications for manual check
+    NotificationTrigger.trigger_version_notification(deployment, result, "manual")
+
     case result do
       {:ok, updated} ->
         # Broadcast PubSub update

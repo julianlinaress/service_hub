@@ -7,6 +7,7 @@ defmodule ServiceHub.Automations.HealthCheck do
 
   alias ServiceHub.Deployments.Deployment
   alias ServiceHub.Checks.Health
+  alias ServiceHub.Checks.NotificationTrigger
   alias ServiceHub.Repo
   import Ecto.Query
 
@@ -34,7 +35,13 @@ defmodule ServiceHub.Automations.HealthCheck do
 
       %Deployment{} = deployment ->
         # Run the health check
-        case Health.run(deployment, deployment.service) do
+        result = Health.run(deployment, deployment.service)
+
+        # Trigger notifications based on result
+        trigger_health_notification(deployment, result)
+
+        # Return automation result
+        case result do
           {:ok, _updated_deployment} ->
             {:ok, "Health check passed"}
 
@@ -55,4 +62,10 @@ defmodule ServiceHub.Automations.HealthCheck do
 
   @impl true
   def concurrency_limit, do: 20
+
+  # Private Functions
+
+  defp trigger_health_notification(deployment, result) do
+    NotificationTrigger.trigger_health_notification(deployment, result, "automatic")
+  end
 end

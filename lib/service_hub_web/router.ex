@@ -66,6 +66,10 @@ defmodule ServiceHubWeb.Router do
       live "/providers/:provider_id/services/:id", ServiceLive.Detail, :show
       live "/providers/:provider_id/services/:id/settings", ServiceLive.Detail, :edit
 
+      live "/providers/:provider_id/services/:id/notifications",
+           ServiceLive.Detail,
+           :notifications
+
       # Services config (placeholder for future list view)
       # live "/config/services", ServiceLive.Index, :index
 
@@ -81,6 +85,11 @@ defmodule ServiceHubWeb.Router do
       live "/config/auth-types/new", AuthTypeLive.Form, :new
       live "/config/auth-types/:id", AuthTypeLive.Show, :show
       live "/config/auth-types/:id/edit", AuthTypeLive.Form, :edit
+
+      # Notifications
+      live "/config/notifications", NotificationLive.Index, :index
+      live "/config/notifications/new", NotificationLive.Index, :new
+      live "/config/notifications/:id/edit", NotificationLive.Index, :edit
 
       # User settings
       live "/users/settings", UserLive.Settings, :edit

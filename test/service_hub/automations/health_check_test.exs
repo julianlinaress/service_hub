@@ -30,32 +30,35 @@ defmodule ServiceHub.Automations.HealthCheckTest do
       scope = user_scope_fixture()
       provider = provider_fixture(scope)
 
-      service = Repo.insert!(%Service{
-        name: "Test Service",
-        provider_id: provider.id,
-        owner: "test",
-        repo: "repo",
-        healthcheck_endpoint_template: "https://{{host}}/health"
-      })
+      service =
+        Repo.insert!(%Service{
+          name: "Test Service",
+          provider_id: provider.id,
+          owner: "test",
+          repo: "repo",
+          healthcheck_endpoint_template: "https://{{host}}/health"
+        })
 
-      enabled_deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "enabled",
-        host: "enabled.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      enabled_deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "enabled",
+          host: "enabled.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
-      disabled_deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "disabled",
-        host: "disabled.example.com",
-        env: "test",
-        automatic_checks_enabled: false,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      disabled_deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "disabled",
+          host: "disabled.example.com",
+          env: "test",
+          automatic_checks_enabled: false,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # Execute query
       query = HealthCheck.targets_query()

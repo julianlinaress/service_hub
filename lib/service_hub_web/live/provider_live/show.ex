@@ -16,7 +16,10 @@ defmodule ServiceHubWeb.ProviderLive.Show do
           <.button navigate={~p"/config/providers"}>
             <.icon name="hero-arrow-left" />
           </.button>
-          <.button variant="primary" navigate={~p"/providers/#{@provider}/edit?return_to=show"}>
+          <.button
+            variant="primary"
+            navigate={~p"/config/providers/#{@provider.id}/edit?return_to=show"}
+          >
             <.icon name="hero-pencil-square" /> Edit provider
           </.button>
           <.button phx-click="validate-connection" variant="primary">
@@ -68,23 +71,25 @@ defmodule ServiceHubWeb.ProviderLive.Show do
 
         <.table id="services" rows={@services}>
           <:col :let={service} label="Name">{service.name}</:col>
-        <:col :let={service} label="Owner/Repo">
-          {service.owner}/{service.repo}
-        </:col>
-        <:col :let={service} label="Default ref">{service.default_ref}</:col>
-        <:col :let={service} label="Version endpoint">
-          {service.version_endpoint_template || "https://{{host}}/api/version"}
-        </:col>
-        <:col :let={service} label="Health endpoint">
-          {service.healthcheck_endpoint_template || "https://{{host}}/api/health"}
-        </:col>
+          <:col :let={service} label="Owner/Repo">
+            {service.owner}/{service.repo}
+          </:col>
+          <:col :let={service} label="Default ref">{service.default_ref}</:col>
+          <:col :let={service} label="Version endpoint">
+            {service.version_endpoint_template || "https://{{host}}/api/version"}
+          </:col>
+          <:col :let={service} label="Health endpoint">
+            {service.healthcheck_endpoint_template || "https://{{host}}/api/health"}
+          </:col>
           <:action :let={service}>
             <div :if={provider_validated?(@provider)} class="sr-only">
-              <.link patch={~p"/providers/#{@provider}/services/#{service.id}/edit"}>Edit</.link>
+              <.link patch={~p"/providers/#{@provider.id}/services/#{service.id}/settings"}>
+                Edit
+              </.link>
             </div>
             <.link
               :if={provider_validated?(@provider)}
-              patch={~p"/providers/#{@provider}/services/#{service.id}/edit"}
+              patch={~p"/providers/#{@provider.id}/services/#{service.id}/settings"}
             >
               Edit
             </.link>

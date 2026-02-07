@@ -64,7 +64,14 @@ defmodule ServiceHub.Automations.Runner do
     result
   end
 
-  defp update_target_state(target, result, finished_at, duration_ms, max_failures, automation_module) do
+  defp update_target_state(
+         target,
+         result,
+         finished_at,
+         duration_ms,
+         max_failures,
+         automation_module
+       ) do
     {status, summary, error} = normalize_result(result)
 
     # Calculate next_run_at based on success or failure
@@ -76,7 +83,11 @@ defmodule ServiceHub.Automations.Runner do
 
         _ ->
           # Failure: use backoff
-          calculate_backoff(target.consecutive_failures + 1, target.interval_minutes, automation_module)
+          calculate_backoff(
+            target.consecutive_failures + 1,
+            target.interval_minutes,
+            automation_module
+          )
       end
 
     consecutive_failures =
@@ -135,7 +146,11 @@ defmodule ServiceHub.Automations.Runner do
     broadcast_deployment_update(target)
   end
 
-  defp broadcast_deployment_update(%{target_type: "deployment", target_id: target_id, automation_id: automation_id}) do
+  defp broadcast_deployment_update(%{
+         target_type: "deployment",
+         target_id: target_id,
+         automation_id: automation_id
+       }) do
     # Fetch the deployment to broadcast
     case Repo.get(Deployment, target_id) do
       nil ->
@@ -157,7 +172,10 @@ defmodule ServiceHub.Automations.Runner do
 
   defp normalize_result({:ok, summary}) when is_binary(summary), do: {"ok", summary, nil}
   defp normalize_result({:ok, _}), do: {"ok", "Success", nil}
-  defp normalize_result({:warning, summary}) when is_binary(summary), do: {"warning", summary, nil}
+
+  defp normalize_result({:warning, summary}) when is_binary(summary),
+    do: {"warning", summary, nil}
+
   defp normalize_result({:warning, _}), do: {"warning", "Warning", nil}
   defp normalize_result({:error, :timeout}), do: {"timeout", nil, "Execution timeout"}
 

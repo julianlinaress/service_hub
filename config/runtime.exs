@@ -1,9 +1,10 @@
 import Config
-
+require Logger
 # Load .env file when present (use ENV_FILE to override path)
 dotenv_path = System.get_env("ENV_FILE", ".env")
 
 if File.exists?(dotenv_path) do
+  Logger.info("Loading environment variables from #{dotenv_path}")
   Envar.load(dotenv_path)
 end
 
@@ -87,8 +88,9 @@ if config_env() == :prod do
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0}
+      ip: {0, 0, 0, 0}
     ],
+    check_origin: false,
     secret_key_base: secret_key_base
 
   # ## SSL Support
