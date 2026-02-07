@@ -12,6 +12,7 @@ defmodule ServiceHub.Automations.RetentionCleaner do
   @behaviour ServiceHub.Automations.Behaviour
 
   require Logger
+  alias ServiceHub.Notifications.Events
   alias ServiceHub.Repo
 
   @impl true
@@ -49,7 +50,13 @@ defmodule ServiceHub.Automations.RetentionCleaner do
           Logger.info("Retention cleaner deleted #{count} old automation_runs records")
         end
 
-        {:ok, "Deleted #{count} old runs"}
+        events_count = Events.prune_old_events(90)
+
+        if events_count > 0 do
+          Logger.info("Retention cleaner deleted #{events_count} old notification_events records")
+        end
+
+        {:ok, "Deleted #{count} old runs and #{events_count} old notification events"}
 
       {:error, error} ->
         Logger.error("Retention cleaner failed: #{inspect(error)}")

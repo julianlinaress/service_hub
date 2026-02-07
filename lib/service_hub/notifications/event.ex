@@ -19,5 +19,6 @@ defmodule ServiceHub.Notifications.Event do
     event
     |> cast(attrs, [:id, :name, :payload, :tags, :actor, :source])
     |> validate_required([:id, :name])
+    |> unique_constraint(:id, name: :notification_events_pkey)
   end
 end
