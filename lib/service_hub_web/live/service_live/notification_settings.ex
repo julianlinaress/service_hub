@@ -156,7 +156,8 @@ defmodule ServiceHubWeb.ServiceLive.NotificationSettings do
     {:ok, _} = Notifications.delete_service_rule(socket.assigns.current_scope, rule)
 
     # Reload rules
-    rules = Notifications.list_service_rules(socket.assigns.current_scope, socket.assigns.service.id)
+    rules =
+      Notifications.list_service_rules(socket.assigns.current_scope, socket.assigns.service.id)
 
     {:noreply,
      socket
@@ -174,7 +175,8 @@ defmodule ServiceHubWeb.ServiceLive.NotificationSettings do
 
   def handle_info({:rule_saved, _rule}, socket) do
     # Reload rules
-    rules = Notifications.list_service_rules(socket.assigns.current_scope, socket.assigns.service.id)
+    rules =
+      Notifications.list_service_rules(socket.assigns.current_scope, socket.assigns.service.id)
 
     {:noreply,
      socket

@@ -42,10 +42,22 @@ defmodule ServiceHubWeb.NotificationLive.FormComponent do
           <p class="text-sm text-base-content/70">
             To set up Telegram notifications:
             <ol class="list-decimal list-inside mt-2 space-y-1">
-              <li>Message <a href="https://t.me/BotFather" target="_blank" class="link">@BotFather</a> on Telegram</li>
+              <li>
+                Message <a href="https://t.me/BotFather" target="_blank" class="link">@BotFather</a>
+                on Telegram
+              </li>
               <li>Create a new bot and copy the token</li>
               <li>Add the bot to your group/channel</li>
-              <li>Get your chat ID from <a href="https://api.telegram.org/bot<YOUR-BOT-TOKEN>/getUpdates" target="_blank" class="link">getUpdates API</a></li>
+              <li>
+                Get your chat ID from
+                <a
+                  href="https://api.telegram.org/bot<YOUR-BOT-TOKEN>/getUpdates"
+                  target="_blank"
+                  class="link"
+                >
+                  getUpdates API
+                </a>
+              </li>
             </ol>
           </p>
 
@@ -80,7 +92,9 @@ defmodule ServiceHubWeb.NotificationLive.FormComponent do
           <p class="text-sm text-base-content/70">
             To set up Slack notifications:
             <ol class="list-decimal list-inside mt-2 space-y-1">
-              <li>Go to <a href="https://api.slack.com/apps" target="_blank" class="link">Slack API</a></li>
+              <li>
+                Go to <a href="https://api.slack.com/apps" target="_blank" class="link">Slack API</a>
+              </li>
               <li>Create a new app or select existing one</li>
               <li>Enable "Incoming Webhooks"</li>
               <li>Create a webhook for your channel and copy the URL</li>
@@ -117,7 +131,11 @@ defmodule ServiceHubWeb.NotificationLive.FormComponent do
   end
 
   @impl true
-  def handle_event("provider_changed", %{"notification_channel" => %{"provider" => provider}}, socket) do
+  def handle_event(
+        "provider_changed",
+        %{"notification_channel" => %{"provider" => provider}},
+        socket
+      ) do
     {:noreply, assign(socket, :selected_provider, provider)}
   end
 

@@ -486,11 +486,13 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   defp format_iso8601(nil), do: nil
   defp format_iso8601(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+
   defp format_iso8601(%NaiveDateTime{} = dt) do
     dt
     |> DateTime.from_naive!("Etc/UTC")
     |> DateTime.to_iso8601()
   end
+
   defp format_iso8601(other), do: to_string(other)
 
   @impl true

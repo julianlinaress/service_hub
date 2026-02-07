@@ -30,48 +30,52 @@ defmodule ServiceHub.Automations.VersionCheckTest do
       scope = user_scope_fixture()
       provider = provider_fixture(scope)
 
-      service = Repo.insert!(%Service{
-        name: "Test Service",
-        provider_id: provider.id,
-        owner: "test",
-        repo: "repo",
-        version_endpoint_template: "https://{{host}}/version"
-      })
+      service =
+        Repo.insert!(%Service{
+          name: "Test Service",
+          provider_id: provider.id,
+          owner: "test",
+          repo: "repo",
+          version_endpoint_template: "https://{{host}}/version"
+        })
 
       # Both checks enabled - should be included
-      both_enabled = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "both_enabled",
-        host: "both.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        version_check_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      both_enabled =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "both_enabled",
+          host: "both.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          version_check_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # Only automatic enabled - should NOT be included
-      _only_automatic = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "only_automatic",
-        host: "auto.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        version_check_enabled: false,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      _only_automatic =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "only_automatic",
+          host: "auto.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          version_check_enabled: false,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # Both disabled - should NOT be included
-      _both_disabled = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "both_disabled",
-        host: "disabled.example.com",
-        env: "test",
-        automatic_checks_enabled: false,
-        version_check_enabled: false,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      _both_disabled =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "both_disabled",
+          host: "disabled.example.com",
+          env: "test",
+          automatic_checks_enabled: false,
+          version_check_enabled: false,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # Execute query
       query = VersionCheck.targets_query()

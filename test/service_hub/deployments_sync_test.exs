@@ -15,28 +15,30 @@ defmodule ServiceHub.DeploymentsSyncTest do
       scope = user_scope_fixture()
       provider = provider_fixture(scope)
 
-      service = Repo.insert!(%Service{
-        name: "Test Service",
-        provider_id: provider.id,
-        owner: "test",
-        repo: "repo",
-        healthcheck_endpoint_template: "https://{{host}}/health",
-        version_endpoint_template: "https://{{host}}/version"
-      })
+      service =
+        Repo.insert!(%Service{
+          name: "Test Service",
+          provider_id: provider.id,
+          owner: "test",
+          repo: "repo",
+          healthcheck_endpoint_template: "https://{{host}}/health",
+          version_endpoint_template: "https://{{host}}/version"
+        })
 
       %{service: service}
     end
 
     test "creates health check target when automatic checks enabled", %{service: service} do
-      deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "test",
-        host: "test.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "test",
+          host: "test.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       Deployments.sync_automation_targets(deployment)
 
@@ -55,16 +57,17 @@ defmodule ServiceHub.DeploymentsSyncTest do
     end
 
     test "creates both targets when automatic and version checks enabled", %{service: service} do
-      deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "test",
-        host: "test.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        version_check_enabled: true,
-        check_interval_minutes: 60,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "test",
+          host: "test.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          version_check_enabled: true,
+          check_interval_minutes: 60,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       Deployments.sync_automation_targets(deployment)
 
@@ -92,15 +95,16 @@ defmodule ServiceHub.DeploymentsSyncTest do
     end
 
     test "updates existing target when sync called again", %{service: service} do
-      deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "test",
-        host: "test.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "test",
+          host: "test.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # First sync
       Deployments.sync_automation_targets(deployment)
@@ -156,15 +160,16 @@ defmodule ServiceHub.DeploymentsSyncTest do
     end
 
     test "re-enables target and resets next_run_at when previously disabled", %{service: service} do
-      deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "test",
-        host: "test.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "test",
+          host: "test.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # First sync
       Deployments.sync_automation_targets(deployment)
@@ -203,16 +208,17 @@ defmodule ServiceHub.DeploymentsSyncTest do
     end
 
     test "removes targets when automatic checks disabled", %{service: service} do
-      deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "test",
-        host: "test.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        version_check_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "test",
+          host: "test.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          version_check_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # Create targets
       Deployments.sync_automation_targets(deployment)
@@ -239,16 +245,17 @@ defmodule ServiceHub.DeploymentsSyncTest do
     test "removes version target when version checks disabled but keeps health", %{
       service: service
     } do
-      deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "test",
-        host: "test.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        version_check_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "test",
+          host: "test.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          version_check_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # Create both targets
       Deployments.sync_automation_targets(deployment)
@@ -292,22 +299,24 @@ defmodule ServiceHub.DeploymentsSyncTest do
       scope = user_scope_fixture()
       provider = provider_fixture(scope)
 
-      service = Repo.insert!(%Service{
-        name: "Test Service",
-        provider_id: provider.id,
-        owner: "test",
-        repo: "repo"
-      })
+      service =
+        Repo.insert!(%Service{
+          name: "Test Service",
+          provider_id: provider.id,
+          owner: "test",
+          repo: "repo"
+        })
 
-      deployment = Repo.insert!(%Deployment{
-        service_id: service.id,
-        name: "test",
-        host: "test.example.com",
-        env: "test",
-        automatic_checks_enabled: true,
-        check_interval_minutes: 30,
-        healthcheck_expectation: %{"allowed_statuses" => [200]}
-      })
+      deployment =
+        Repo.insert!(%Deployment{
+          service_id: service.id,
+          name: "test",
+          host: "test.example.com",
+          env: "test",
+          automatic_checks_enabled: true,
+          check_interval_minutes: 30,
+          healthcheck_expectation: %{"allowed_statuses" => [200]}
+        })
 
       # Create automation targets
       Deployments.sync_automation_targets(deployment)

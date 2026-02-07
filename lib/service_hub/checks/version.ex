@@ -41,6 +41,7 @@ defmodule ServiceHub.Checks.Version do
       case Req.request(req_opts) do
         {:ok, %{status: status} = response} ->
           Logger.info("Version check response url=#{url} status=#{status}")
+
           if status in allowed_statuses do
             log_parsing(field, response.body)
             parse_version(response.body, field)

@@ -95,7 +95,11 @@ defmodule ServiceHub.Deployments.Deployment do
 
     cond do
       automatic_enabled and is_nil(interval) ->
-        add_error(changeset, :check_interval_minutes, "must be set when automatic checks are enabled")
+        add_error(
+          changeset,
+          :check_interval_minutes,
+          "must be set when automatic checks are enabled"
+        )
 
       automatic_enabled and interval not in @allowed_intervals ->
         add_error(changeset, :check_interval_minutes, "must be one of the allowed intervals")

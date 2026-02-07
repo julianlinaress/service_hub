@@ -7,7 +7,9 @@ defmodule ServiceHub.NotificationsTest do
 
   describe "notification_channels" do
     setup do
-      {:ok, user} = Accounts.register_user(%{email: "test@example.com", password: "password123password123"})
+      {:ok, user} =
+        Accounts.register_user(%{email: "test@example.com", password: "password123password123"})
+
       scope = %ServiceHub.Accounts.Scope{user: user}
       %{scope: scope, user: user}
     end
@@ -33,7 +35,9 @@ defmodule ServiceHub.NotificationsTest do
         enabled: true
       }
 
-      assert {:ok, %NotificationChannel{} = channel} = Notifications.create_channel(scope, valid_attrs)
+      assert {:ok, %NotificationChannel{} = channel} =
+               Notifications.create_channel(scope, valid_attrs)
+
       assert channel.name == "Test Telegram"
       assert channel.provider == "telegram"
       assert channel.enabled == true

@@ -104,7 +104,10 @@ defmodule ServiceHubWeb.NotificationLive.Index do
   defp apply_action(socket, :edit, %{"id" => id}) do
     socket
     |> assign(:page_title, "Edit Channel")
-    |> assign(:channel, Notifications.get_channel!(socket.assigns.current_scope, String.to_integer(id)))
+    |> assign(
+      :channel,
+      Notifications.get_channel!(socket.assigns.current_scope, String.to_integer(id))
+    )
   end
 
   defp apply_action(socket, :new, _params) do
