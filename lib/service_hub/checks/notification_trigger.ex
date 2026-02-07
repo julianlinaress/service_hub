@@ -5,6 +5,7 @@ defmodule ServiceHub.Checks.NotificationTrigger do
   """
 
   alias ServiceHub.Notifications.EventHandler
+  alias ServiceHub.Notifications.Events
   alias ServiceHub.Notifications.DeploymentNotificationState
   alias ServiceHub.Repo
 
@@ -73,7 +74,8 @@ defmodule ServiceHub.Checks.NotificationTrigger do
 
         # Any other change - treat as info
         _ ->
-          {true, "change", "Health check status changed from #{previous_status} to #{current_status}"}
+          {true, "change",
+           "Health check status changed from #{previous_status} to #{current_status}"}
       end
 
     # Only emit if there's a change
@@ -95,9 +97,8 @@ defmodule ServiceHub.Checks.NotificationTrigger do
         "source" => source
       }
 
-      # Emit FYI event for persistence
       event_name = "health.#{severity}"
-      FYI.emit(event_name, event_payload, tags: event_tags)
+      Events.emit(event_name, event_payload, tags: event_tags)
 
       # Handle event routing and delivery
       EventHandler.handle_event(%{
@@ -191,9 +192,8 @@ defmodule ServiceHub.Checks.NotificationTrigger do
         "source" => source
       }
 
-      # Emit FYI event for persistence
       event_name = "version.#{severity}"
-      FYI.emit(event_name, event_payload, tags: event_tags)
+      Events.emit(event_name, event_payload, tags: event_tags)
 
       # Handle event routing and delivery
       EventHandler.handle_event(%{

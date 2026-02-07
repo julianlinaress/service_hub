@@ -1,11 +1,11 @@
 # Phase 1 – Iteration 7 Plan: Notifications (Alerts/Warnings)
 
-- **Scope:** Add alert/warning notifications for health/version checks and automation events using the `fyi` library (Telegram primary, Slack planned alongside).
+- **Scope:** Add alert/warning notifications for health/version checks and automation events using the internal notification event pipeline (Telegram primary, Slack planned alongside).
 - **Goal:** Provide per-service, per-alert configuration with reliable delivery, deduplication, and clear UI controls. Tests are **critical and core** for this implementation.
 
 ## Objectives & Deliverables
 - Notifications context `ServiceHub.Notifications` with rules evaluation, enqueueing, delivery logging, and adapters.
-- Telegram integration via `fyi` (full), Slack integration via `fyi` (ready, same flow).
+- Telegram integration (full), Slack integration (ready, same flow).
 - Service-level configuration to enable/disable alerts and choose which events notify.
 - Per-service channel setup (Telegram/Slack) with test delivery and visible status.
 - Dedupe/throttle logic to avoid spam and handle clustered nodes.
@@ -113,7 +113,7 @@ Example rules map per service:
 2. Load service rules + channels -> filter by enabled/mute/config.
 3. Dedupe with `dedupe_key` + change-only gating (scoped per channel).
 4. Enqueue to `notification_outbox` (async, cluster-safe).
-5. Worker claims pending items using the existing automation scheduler pattern (DB locks), sends via `fyi` adapter.
+5. Worker claims pending items using the existing automation scheduler pattern (DB locks), sends via provider adapters.
 6. Record `notification_deliveries`, update `notification_states`, and set outbox status.
 7. On failure -> increment attempt, compute backoff, update channel error state.
 
@@ -138,10 +138,10 @@ Example rules map per service:
   - Manual check notify toggle
 
 ## Work Breakdown
-1. **Spike `fyi`**: validate Telegram + Slack payloads and error behavior.
+1. **Spike adapters**: validate Telegram + Slack payloads and error behavior.
 2. **Schema & Migration**: add notification tables + indexes + unique constraints.
 3. **Context layer**: `ServiceHub.Notifications` with rule evaluation + dedupe.
-4. **Adapters**: `ServiceHub.Notifications.Adapters.Telegram` and `.Slack` using `fyi`.
+4. **Adapters**: `ServiceHub.Notifications.Adapters.Telegram` and `.Slack` using direct API/webhook delivery.
 5. **Outbox worker**: reuse the existing automation scheduler pattern (DB-locked claims + Task.Supervisor), but keep a separate Notifications namespace/modules.
 6. **Integration hooks**: checks + automation runner + event normalization.
 7. **UI**: service settings for channels + rules + test delivery.

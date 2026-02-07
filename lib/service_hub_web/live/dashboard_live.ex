@@ -43,9 +43,9 @@ defmodule ServiceHubWeb.DashboardLive do
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold">Recent Health Checks</h2>
-            <.link navigate={~p"/monitoring"} class="btn btn-ghost btn-sm">
+            <span class="btn btn-ghost btn-sm pointer-events-none opacity-60" aria-disabled="true">
               View all <.icon name="hero-arrow-right" class="w-4 h-4" />
-            </.link>
+            </span>
           </div>
 
           <div

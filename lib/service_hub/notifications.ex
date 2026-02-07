@@ -3,7 +3,7 @@ defmodule ServiceHub.Notifications do
   Notification management system.
 
   Handles notification channels and service notification rules.
-  Uses FYI library for event emission and delivery.
+  Uses internal event emission and delivery.
   """
   import Ecto.Query, warn: false
 
@@ -93,7 +93,10 @@ defmodule ServiceHub.Notifications do
     |> join(:inner, [r], s in assoc(r, :service))
     |> join(:inner, [_r, s], p in assoc(s, :provider))
     |> join(:inner, [r], c in assoc(r, :channel))
-    |> where([r, _s, p, c], r.id == ^id and p.user_id == ^scope.user.id and c.user_id == ^scope.user.id)
+    |> where(
+      [r, _s, p, c],
+      r.id == ^id and p.user_id == ^scope.user.id and c.user_id == ^scope.user.id
+    )
     |> preload([r, _s, _p, c], [:service, :channel])
     |> Repo.one!()
   end

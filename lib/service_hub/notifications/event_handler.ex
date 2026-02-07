@@ -1,8 +1,8 @@
 defmodule ServiceHub.Notifications.EventHandler do
   @moduledoc """
-  FYI event handler for routing health check and automation events to notification channels.
+  Event handler for routing health check and automation events to notification channels.
 
-  This module subscribes to FYI events and delivers them to appropriate channels
+  This module receives internal notification events and delivers them to appropriate channels
   based on service notification rules.
   """
 
@@ -13,7 +13,7 @@ defmodule ServiceHub.Notifications.EventHandler do
   alias ServiceHub.Repo
 
   @doc """
-  Handles a FYI event and routes it to configured channels.
+  Handles a notification event and routes it to configured channels.
 
   Expected event payload:
   - service_id: The service ID
@@ -43,7 +43,15 @@ defmodule ServiceHub.Notifications.EventHandler do
 
     # Send to each channel
     Enum.each(rules, fn rule ->
-      deliver_to_channel(rule.channel, service_id, deployment_id, check_type, severity, message, metadata)
+      deliver_to_channel(
+        rule.channel,
+        service_id,
+        deployment_id,
+        check_type,
+        severity,
+        message,
+        metadata
+      )
     end)
 
     :ok
@@ -99,13 +107,37 @@ defmodule ServiceHub.Notifications.EventHandler do
   defp severity_to_rule_key("recovery"), do: "recovery"
   defp severity_to_rule_key(_), do: "unknown"
 
-  defp deliver_to_channel(channel, service_id, deployment_id, check_type, severity, message, metadata) do
+  defp deliver_to_channel(
+         channel,
+         service_id,
+         deployment_id,
+         check_type,
+         severity,
+         message,
+         metadata
+       ) do
     case channel.provider do
       "telegram" ->
-        send_telegram(channel.config, service_id, deployment_id, check_type, severity, message, metadata)
+        send_telegram(
+          channel.config,
+          service_id,
+          deployment_id,
+          check_type,
+          severity,
+          message,
+          metadata
+        )
 
       "slack" ->
-        send_slack(channel.config, service_id, deployment_id, check_type, severity, message, metadata)
+        send_slack(
+          channel.config,
+          service_id,
+          deployment_id,
+          check_type,
+          severity,
+          message,
+          metadata
+        )
 
       _ ->
         Logger.warning("Unknown provider: #{channel.provider}")
@@ -127,7 +159,8 @@ defmodule ServiceHub.Notifications.EventHandler do
     parse_mode = config["parse_mode"] || "HTML"
 
     # Format message
-    formatted_message = format_telegram_message(deployment_id, check_type, severity, message, metadata, parse_mode)
+    formatted_message =
+      format_telegram_message(deployment_id, check_type, severity, message, metadata, parse_mode)
 
     # Send via Telegram Bot API
     url = "https://api.telegram.org/bot#{token}/sendMessage"
@@ -156,7 +189,8 @@ defmodule ServiceHub.Notifications.EventHandler do
     webhook_url = config["webhook_url"]
 
     # Format message
-    formatted_message = format_slack_message(deployment_id, check_type, severity, message, metadata)
+    formatted_message =
+      format_slack_message(deployment_id, check_type, severity, message, metadata)
 
     # Send via Slack webhook
     case Req.post(webhook_url, json: formatted_message) do
@@ -237,10 +271,11 @@ defmodule ServiceHub.Notifications.EventHandler do
   defp severity_color(_), do: "#36a64f"
 
   defp update_channel_error(channel, error_message) do
-    changeset = Ecto.Changeset.change(channel, %{
-      last_error: error_message,
-      last_sent_at: DateTime.utc_now()
-    })
+    changeset =
+      Ecto.Changeset.change(channel, %{
+        last_error: error_message,
+        last_sent_at: DateTime.utc_now()
+      })
 
     Repo.update(changeset)
   end

@@ -8,7 +8,6 @@ defmodule ServiceHub.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      FYI.Application,
       ServiceHubWeb.Telemetry,
       ServiceHub.Repo,
       {DNSCluster, query: Application.get_env(:service_hub, :dns_cluster_query) || :ignore},

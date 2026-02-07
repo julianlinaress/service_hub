@@ -246,7 +246,7 @@ defmodule ServiceHub.Checks.NotificationTriggerTest do
       result = {:ok, deployment}
 
       # This test verifies the function runs without error with "automatic" source
-      # In a real scenario, we'd verify the FYI event has the correct tag
+      # In a real scenario, we'd verify the emitted event has the correct tag
       NotificationTrigger.trigger_health_notification(deployment, result, "automatic")
 
       state =
@@ -262,7 +262,7 @@ defmodule ServiceHub.Checks.NotificationTriggerTest do
       result = {:ok, deployment}
 
       # This test verifies the function runs without error with "manual" source
-      # In a real scenario, we'd verify the FYI event has the correct tag
+      # In a real scenario, we'd verify the emitted event has the correct tag
       NotificationTrigger.trigger_health_notification(deployment, result, "manual")
 
       state =
