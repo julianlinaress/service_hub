@@ -3,6 +3,8 @@ defmodule ServiceHub.NotificationsTest do
 
   alias ServiceHub.Notifications
   alias ServiceHub.Notifications.NotificationChannel
+  alias ServiceHub.Notifications.TelegramAccount
+  alias ServiceHub.Notifications.TelegramDestination
   alias ServiceHub.Accounts
 
   describe "notification_channels" do
@@ -16,7 +18,7 @@ defmodule ServiceHub.NotificationsTest do
 
     test "list_channels/1 returns all channels for user", %{scope: scope} do
       channel = channel_fixture(scope)
-      assert Notifications.list_channels(scope) == [channel]
+      assert Enum.map(Notifications.list_channels(scope), & &1.id) == [channel.id]
     end
 
     test "get_channel!/2 returns the channel with given id", %{scope: scope} do
@@ -30,7 +32,7 @@ defmodule ServiceHub.NotificationsTest do
         provider: "telegram",
         config: %{
           "token" => "123456:ABC-DEF",
-          "chat_id" => "-1001234567890"
+          "chat_ref" => "-1001234567890"
         },
         enabled: true
       }
@@ -41,6 +43,33 @@ defmodule ServiceHub.NotificationsTest do
       assert channel.name == "Test Telegram"
       assert channel.provider == "telegram"
       assert channel.enabled == true
+      assert channel.telegram_account_id
+      assert channel.telegram_destination_id
+    end
+
+    test "create_channel/2 reuses telegram account and stores destination reference", %{
+      scope: scope
+    } do
+      attrs_1 = %{
+        name: "Primary",
+        provider: "telegram",
+        config: %{"token" => "123456:ABC-DEF", "chat_ref" => "@alerts"}
+      }
+
+      attrs_2 = %{
+        name: "Secondary",
+        provider: "telegram",
+        config: %{"token" => "123456:ABC-DEF", "chat_ref" => "-100999"}
+      }
+
+      assert {:ok, channel_1} = Notifications.create_channel(scope, attrs_1)
+      assert {:ok, channel_2} = Notifications.create_channel(scope, attrs_2)
+
+      assert channel_1.telegram_account_id == channel_2.telegram_account_id
+      assert channel_1.telegram_destination_id != channel_2.telegram_destination_id
+
+      assert Repo.aggregate(TelegramAccount, :count) == 1
+      assert Repo.aggregate(TelegramDestination, :count) == 2
     end
 
     test "create_channel/2 with invalid data returns error changeset", %{scope: scope} do
@@ -56,7 +85,10 @@ defmodule ServiceHub.NotificationsTest do
       }
 
       assert {:error, changeset} = Notifications.create_channel(scope, invalid_attrs)
-      assert "must include token and chat_id for Telegram" in errors_on(changeset).config
+
+      assert "must include token and chat_ref for Telegram, or linked telegram_account/telegram_destination" in errors_on(
+               changeset
+             ).config
     end
 
     test "create_channel/2 validates slack config", %{scope: scope} do
@@ -101,7 +133,7 @@ defmodule ServiceHub.NotificationsTest do
       provider: "telegram",
       config: %{
         "token" => "123456:ABC-DEF",
-        "chat_id" => "-1001234567890"
+        "chat_ref" => "-1001234567890"
       },
       enabled: true
     }

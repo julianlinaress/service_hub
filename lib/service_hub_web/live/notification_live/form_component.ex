@@ -47,17 +47,8 @@ defmodule ServiceHubWeb.NotificationLive.FormComponent do
                 on Telegram
               </li>
               <li>Create a new bot and copy the token</li>
-              <li>Add the bot to your group/channel</li>
-              <li>
-                Get your chat ID from
-                <a
-                  href="https://api.telegram.org/bot<YOUR-BOT-TOKEN>/getUpdates"
-                  target="_blank"
-                  class="link"
-                >
-                  getUpdates API
-                </a>
-              </li>
+              <li>Add the bot to your chat/channel and send at least one message</li>
+              <li>Use a chat reference (`@channel_name` or numeric id) as destination</li>
             </ol>
           </p>
 
@@ -71,11 +62,11 @@ defmodule ServiceHubWeb.NotificationLive.FormComponent do
           />
 
           <.input
-            name="notification_channel[config][chat_id]"
+            name="notification_channel[config][chat_ref]"
             type="text"
-            label="Chat ID"
-            placeholder="-1001234567890"
-            value={get_config_value(@form, "chat_id")}
+            label="Chat Reference"
+            placeholder="@my_alerts or -1001234567890"
+            value={get_config_value(@form, "chat_ref") || get_config_value(@form, "chat_id")}
             required={@selected_provider == "telegram"}
           />
 

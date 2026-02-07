@@ -77,7 +77,7 @@ defmodule ServiceHub.Notifications.EventHandler do
     |> where([r, c], r.service_id == ^service_id)
     |> where([r, c], r.enabled == true and c.enabled == true)
     |> where([r], is_nil(r.mute_until) or r.mute_until < ^now)
-    |> preload([r, c], :channel)
+    |> preload([r, c], channel: [:telegram_account, :telegram_destination])
     |> Repo.all()
     |> Enum.filter(fn rule ->
       rule_matches?(rule, check_type, severity, source)
@@ -119,7 +119,7 @@ defmodule ServiceHub.Notifications.EventHandler do
     case channel.provider do
       "telegram" ->
         send_telegram(
-          channel.config,
+          channel,
           service_id,
           deployment_id,
           check_type,
@@ -153,10 +153,9 @@ defmodule ServiceHub.Notifications.EventHandler do
       :ok
   end
 
-  def send_telegram(config, _service_id, deployment_id, check_type, severity, message, metadata) do
-    token = config["token"]
-    chat_id = config["chat_id"]
-    parse_mode = config["parse_mode"] || "HTML"
+  def send_telegram(channel, _service_id, deployment_id, check_type, severity, message, metadata) do
+    %{token: token, chat_ref: chat_ref, parse_mode: parse_mode, thread_id: thread_id} =
+      resolve_telegram_delivery_config(channel)
 
     # Format message
     formatted_message =
@@ -165,13 +164,20 @@ defmodule ServiceHub.Notifications.EventHandler do
     # Send via Telegram Bot API
     url = "https://api.telegram.org/bot#{token}/sendMessage"
 
-    case Req.post(url,
-           json: %{
-             chat_id: chat_id,
-             text: formatted_message,
-             parse_mode: parse_mode
-           }
-         ) do
+    request_payload = %{
+      chat_id: chat_ref,
+      text: formatted_message,
+      parse_mode: parse_mode
+    }
+
+    request_payload =
+      if is_nil(thread_id) do
+        request_payload
+      else
+        Map.put(request_payload, :message_thread_id, thread_id)
+      end
+
+    case Req.post(url, json: request_payload) do
       {:ok, %{status: 200}} ->
         :ok
 
@@ -182,6 +188,28 @@ defmodule ServiceHub.Notifications.EventHandler do
       {:error, reason} ->
         Logger.error("Failed to send Telegram message: #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  defp resolve_telegram_delivery_config(channel) do
+    config = channel.config || %{}
+
+    case {channel.telegram_account, channel.telegram_destination} do
+      {%{bot_token: token}, %{chat_ref: chat_ref, message_thread_id: thread_id}} ->
+        %{
+          token: token,
+          chat_ref: chat_ref,
+          parse_mode: config["parse_mode"] || "HTML",
+          thread_id: thread_id
+        }
+
+      _ ->
+        %{
+          token: config["token"],
+          chat_ref: config["chat_ref"] || config["chat_id"],
+          parse_mode: config["parse_mode"] || "HTML",
+          thread_id: nil
+        }
     end
   end
 

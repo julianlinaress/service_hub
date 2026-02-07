@@ -196,7 +196,7 @@ defmodule ServiceHubWeb.NotificationLive.Index do
     case channel.provider do
       "telegram" ->
         ServiceHub.Notifications.EventHandler.send_telegram(
-          channel.config,
+          channel,
           service_id,
           deployment_id,
           check_type,

@@ -34,7 +34,7 @@
 - `user_id`
 - `provider` ("telegram" | "slack")
 - `name`
-- `config` (map, contains tokens, chat_id, webhook, etc.)
+- `config` (map, contains destination refs, parse mode, webhook, etc.)
 - `enabled` (boolean)
 - `last_error` (text)
 - `last_sent_at` (utc_datetime_usec)
@@ -118,7 +118,7 @@ Example rules map per service:
 7. On failure -> increment attempt, compute backoff, update channel error state.
 
 ## Failure Modes & Mitigations
-- Invalid token/chat_id/webhook -> mark channel error, show in UI, avoid blocking checks.
+- Invalid token/chat reference/webhook -> mark channel error, show in UI, avoid blocking checks.
 - Rate limits/timeouts -> retry with backoff; prevent floods with throttle.
 - Duplicates across nodes -> unique `dedupe_key` scoped per channel.
 - Manual checks spam -> `notify_on_manual` default false.
@@ -166,7 +166,7 @@ Tests are **critical and core** to this iteration.
 
 ## Open Questions to Resolve Early
 - Where to store tokens (DB `config` vs env-only)?
-- How to store Telegram `chat_id` (per channel in `config`, with validation and a simple “send test” to verify)?
+- How to store Telegram destination references with account reuse and send-test verification?
 - Future requirement: support different Telegram bots per service. Design `notification_channels.config` to allow bot scoping, but do not implement per-service bots in this iteration.
 - Default behavior for manual checks (`notify_on_manual`)?
 - Should recovery notifications be enabled by default?
