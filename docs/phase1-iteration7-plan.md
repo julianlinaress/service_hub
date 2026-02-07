@@ -1,5 +1,7 @@
 # Phase 1 – Iteration 7 Plan: Notifications (Alerts/Warnings)
 
+> Historical planning note. For current behavior, see `README.md` and `PROJECT_PLAN.md`.
+
 - **Scope:** Add alert/warning notifications for health/version checks and automation events using the internal notification event pipeline (Telegram primary, Slack planned alongside).
 - **Goal:** Provide per-service, per-alert configuration with reliable delivery, deduplication, and clear UI controls. Tests are **critical and core** for this implementation.
 
@@ -28,7 +30,7 @@
 - **Automation events:**
   - auto-paused, resume, stale lease -> warning/alert (configurable)
 
-## Data Model (proposed)
+## Data Model (implemented)
 **`notification_channels`**
 - `id`
 - `user_id`
@@ -38,23 +40,18 @@
 - `enabled` (boolean)
 - `last_error` (text)
 - `last_sent_at` (utc_datetime_usec)
+- `telegram_account_id` (nullable FK)
+- `telegram_destination_id` (nullable FK)
 - timestamps
 
-**`notification_outbox`** (async queue)
+**`notification_events`**
 - `id`
-- `channel_id`
-- `service_id`
-- `deployment_id` (nullable)
-- `check_type`
-- `severity`
-- `payload` (map, normalized message + metadata)
-- `status` ("pending" | "processing" | "sent" | "failed" | "dead")
-- `attempt` (integer)
-- `next_run_at` (utc_datetime_usec)
-- `locked_at` (utc_datetime_usec)
-- `lock_owner` (string, node name)
-- `last_error`
-- timestamps
+- `name`
+- `payload` (map)
+- `tags` (map)
+- `actor` (nullable)
+- `source` (nullable)
+- `inserted_at`
 
 **`service_notification_rules`**
 - `id`
@@ -67,7 +64,7 @@
 - `reminder_interval_minutes` (integer, nullable)
 - timestamps
 
-**`notification_states`** (for dedupe/change tracking)
+**`deployment_notification_states`** (for change tracking)
 - `id`
 - `service_id`
 - `deployment_id` (nullable)
@@ -77,18 +74,23 @@
 - `last_notified_at`
 - timestamps
 
-**`notification_deliveries`** (audit)
+**`notification_telegram_accounts`**
 - `id`
-- `channel_id`
-- `service_id`
-- `deployment_id` (nullable)
-- `check_type`
-- `severity`
-- `status` ("sent" | "failed")
-- `dedupe_key` (unique)
-- `sent_at`
-- `error`
-- `response`
+- `user_id`
+- `name`
+- `bot_token`
+- `last_validated_at` (nullable)
+- timestamps
+
+**`notification_telegram_destinations`**
+- `id`
+- `telegram_account_id`
+- `chat_ref`
+- `chat_type` (nullable)
+- `title` (nullable)
+- `username` (nullable)
+- `message_thread_id` (nullable)
+- `verified_at` (nullable)
 - timestamps
 
 ## Service Configuration Examples
@@ -109,13 +111,11 @@ Example rules map per service:
 - **PubSub:** keep broadcast for UI; notifications are independent and must not rely on LiveView presence.
 
 ## Delivery Flow
-1. Normalize event -> `check_type`, `severity`, `message`, `metadata`, `dedupe_key`.
-2. Load service rules + channels -> filter by enabled/mute/config.
-3. Dedupe with `dedupe_key` + change-only gating (scoped per channel).
-4. Enqueue to `notification_outbox` (async, cluster-safe).
-5. Worker claims pending items using the existing automation scheduler pattern (DB locks), sends via provider adapters.
-6. Record `notification_deliveries`, update `notification_states`, and set outbox status.
-7. On failure -> increment attempt, compute backoff, update channel error state.
+1. Check modules emit normalized internal notification events.
+2. Events are persisted in `notification_events`.
+3. Rules + channels are loaded and filtered by scope and enabled flags.
+4. Event handler delivers directly through Telegram/Slack providers.
+5. Channel error and last-send metadata are updated on delivery failures.
 
 ## Failure Modes & Mitigations
 - Invalid token/chat reference/webhook -> mark channel error, show in UI, avoid blocking checks.
