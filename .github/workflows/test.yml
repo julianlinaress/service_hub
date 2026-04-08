@@ -41,4 +41,4 @@ jobs:
             -e MIX_ENV=test \
             -e DATABASE_URL="ecto://postgres_dev:postgres@localhost:5432/service_hub_test" \
             docker.io/hexpm/elixir:1.19.3-erlang-28.1-debian-trixie-20260316-slim \
-            bash -lc "apt-get update -qq && apt-get install -y -qq git && mix local.hex --force && mix local.rebar --force && mix deps.get && mix precommit"
+            bash -lc "apt-get update -qq && apt-get install -y -qq git build-essential && mix local.hex --force && mix local.rebar --force && mix deps.get && mix precommit"
