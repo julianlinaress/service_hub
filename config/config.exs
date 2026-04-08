@@ -20,7 +20,8 @@ config :service_hub, Oban,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"* * * * *", ServiceHub.Workers.CheckEnqueuerWorker}
+       {"* * * * *", ServiceHub.Workers.CheckEnqueuerWorker},
+       {"0 * * * *", ServiceHub.Workers.RetentionCleanerWorker}
      ]},
     {Oban.Plugins.Pruner, max_age: 86_400}
   ],
