@@ -13,7 +13,7 @@ It provides provider connectivity, deployment checks, automations, and notificat
 - Service management linked to providers
 - Deployment model (host/env scoped instances per service)
 - Manual checks (health/version)
-- Automation scheduler + runner for periodic checks
+- Oban-based background jobs for periodic health/version checks, async notification delivery, and retention cleanup
 - Notification channels and per-service notification rules
 - Notification event persistence + retention cleanup
 - Telegram + Slack delivery
@@ -36,7 +36,8 @@ It provides provider connectivity, deployment checks, automations, and notificat
 - `providers`: external source control providers
 - `services`: repositories tracked in Service Hub
 - `deployments`: running installations of a service
-- `automation_targets` / `automation_runs`: scheduler state and run history
+- `automation_targets` / `automation_runs`: per-deployment scheduling state and run history (driven by Oban workers)
+- `oban_jobs`: background job queue (health/version checks, notifications, retention)
 - `notification_channels`: delivery channels
 - `service_notification_rules`: routing config by service
 - `notification_events`: internal event log

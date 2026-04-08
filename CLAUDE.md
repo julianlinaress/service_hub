@@ -58,6 +58,25 @@ Context modules follow Phoenix conventions and always take `%Scope{}` as first a
 
 Access current user via `scope.user` in queries. In templates, use `@current_scope.user`.
 
+### Background Jobs (Oban)
+
+All background work runs through Oban. **Do not introduce new GenServer-based pollers or `Task.Supervisor` background workers** — add Oban workers instead.
+
+Workers live in `lib/service_hub/workers/`:
+
+- `CheckEnqueuerWorker` — cron job (every minute) that polls `automation_targets` for due deployments and enqueues check jobs. Source of truth for "what to run when" is the `automation_targets` table (per-deployment `interval_minutes`, `next_run_at`, `consecutive_failures`, `paused_at`).
+- `HealthCheckWorker` — runs one health check on the `:health_checks` queue. `max_attempts: 1` because retry/backoff is managed via `automation_targets`, not Oban retries.
+- `VersionCheckWorker` — runs one version check on the `:version_checks` queue. Same retry model as HealthCheckWorker.
+- `NotificationWorker` — async Telegram/Slack delivery on the `:notifications` queue with 3 Oban retries.
+- `RetentionCleanerWorker` — hourly cron job on the `:maintenance` queue that prunes old `automation_runs` and `notification_events`.
+- `CheckHelpers` — shared logic for updating `automation_targets` state, inserting `automation_runs` audit records, exponential backoff, and result normalization.
+
+Queues: `default: 10`, `health_checks: 20`, `version_checks: 10`, `notifications: 5`, `maintenance: 1`.
+
+Notification flow: `NotificationTrigger` persists the event synchronously via `Events.emit/3` (audit), then enqueues a `NotificationWorker` job for the actual HTTP delivery. Manual checks from the LiveView use the same path and also get async delivery for free.
+
+Tests use `Oban.Testing` with `testing: :manual` (configured in `config/test.exs`). Use `perform_job/2`, `assert_enqueued/1`, `refute_enqueued/1`.
+
 ### LiveView Patterns
 
 **Async data loading pattern:**
