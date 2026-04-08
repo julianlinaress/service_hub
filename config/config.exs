@@ -7,6 +7,12 @@
 # General application configuration
 import Config
 
+config :service_hub, Oban,
+  engine: Oban.Engines.Basic,
+  notifier: Oban.Notifiers.Postgres,
+  queues: [default: 10],
+  repo: ServiceHub.Repo
+
 config :service_hub, :scopes,
   user: [
     default: true,
