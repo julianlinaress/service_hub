@@ -7,6 +7,26 @@
 # General application configuration
 import Config
 
+config :service_hub, Oban,
+  engine: Oban.Engines.Basic,
+  notifier: Oban.Notifiers.Postgres,
+  queues: [
+    default: 10,
+    health_checks: 20,
+    version_checks: 10,
+    notifications: 5,
+    maintenance: 1
+  ],
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"* * * * *", ServiceHub.Workers.CheckEnqueuerWorker},
+       {"0 * * * *", ServiceHub.Workers.RetentionCleanerWorker}
+     ]},
+    {Oban.Plugins.Pruner, max_age: 86_400}
+  ],
+  repo: ServiceHub.Repo
+
 config :service_hub, :scopes,
   user: [
     default: true,
@@ -23,22 +43,6 @@ config :service_hub, :scopes,
 config :service_hub,
   ecto_repos: [ServiceHub.Repo],
   generators: [timestamp_type: :utc_datetime]
-
-# Configure automations
-config :service_hub, ServiceHub.Automations.Scheduler,
-  poll_interval_ms: 10_000,
-  poll_jitter_ms: 10_000,
-  batch_size: 50,
-  global_concurrency: 10,
-  lease_ttl_min_minutes: 10,
-  lease_ttl_multiplier: 2
-
-config :service_hub, ServiceHub.Automations,
-  automations: [
-    ServiceHub.Automations.HealthCheck,
-    ServiceHub.Automations.VersionCheck,
-    ServiceHub.Automations.RetentionCleaner
-  ]
 
 # Configure the endpoint
 config :service_hub, ServiceHubWeb.Endpoint,

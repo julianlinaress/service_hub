@@ -11,11 +11,8 @@ defmodule ServiceHub.Application do
       ServiceHubWeb.Telemetry,
       ServiceHub.Repo,
       {DNSCluster, query: Application.get_env(:service_hub, :dns_cluster_query) || :ignore},
+      {Oban, Application.fetch_env!(:service_hub, Oban)},
       {Phoenix.PubSub, name: ServiceHub.PubSub},
-      # Task supervisor for automation runners
-      {Task.Supervisor, name: ServiceHub.TaskSupervisor},
-      # Automation scheduler
-      {ServiceHub.Automations.Scheduler, []},
       # Start to serve requests, typically the last entry
       ServiceHubWeb.Endpoint
     ]

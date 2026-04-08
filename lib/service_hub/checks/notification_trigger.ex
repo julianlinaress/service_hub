@@ -4,9 +4,9 @@ defmodule ServiceHub.Checks.NotificationTrigger do
   Used by both automatic checks (automations) and manual checks (UI).
   """
 
-  alias ServiceHub.Notifications.EventHandler
   alias ServiceHub.Notifications.Events
   alias ServiceHub.Notifications.DeploymentNotificationState
+  alias ServiceHub.Workers.NotificationWorker
   alias ServiceHub.Repo
 
   @doc """
@@ -100,12 +100,10 @@ defmodule ServiceHub.Checks.NotificationTrigger do
       event_name = "health.#{severity}"
       Events.emit(event_name, event_payload, tags: event_tags)
 
-      # Handle event routing and delivery
-      EventHandler.handle_event(%{
-        name: event_name,
-        payload: event_payload,
-        tags: event_tags
-      })
+      # Enqueue async delivery to notification channels
+      %{event: %{name: event_name, payload: event_payload, tags: event_tags}}
+      |> NotificationWorker.new()
+      |> Oban.insert()
 
       # Update state
       state
@@ -195,12 +193,10 @@ defmodule ServiceHub.Checks.NotificationTrigger do
       event_name = "version.#{severity}"
       Events.emit(event_name, event_payload, tags: event_tags)
 
-      # Handle event routing and delivery
-      EventHandler.handle_event(%{
-        name: event_name,
-        payload: event_payload,
-        tags: event_tags
-      })
+      # Enqueue async delivery to notification channels
+      %{event: %{name: event_name, payload: event_payload, tags: event_tags}}
+      |> NotificationWorker.new()
+      |> Oban.insert()
 
       # Update state
       state
