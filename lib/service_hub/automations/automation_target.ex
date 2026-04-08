@@ -20,7 +20,6 @@ defmodule ServiceHub.Automations.AutomationTarget do
     field :last_status, :string
     field :last_error, :string
     field :consecutive_failures, :integer, default: 0
-    field :lock_version, :integer, default: 1
 
     timestamps(type: :utc_datetime)
   end
@@ -34,8 +33,7 @@ defmodule ServiceHub.Automations.AutomationTarget do
     :paused_at,
     :last_status,
     :last_error,
-    :consecutive_failures,
-    :lock_version
+    :consecutive_failures
   ]
 
   @doc false
