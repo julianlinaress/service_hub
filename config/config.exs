@@ -18,7 +18,10 @@ config :service_hub, Oban,
     maintenance: 1
   ],
   plugins: [
-    {Oban.Plugins.Cron, crontab: []},
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"* * * * *", ServiceHub.Workers.CheckEnqueuerWorker}
+     ]},
     {Oban.Plugins.Pruner, max_age: 86_400}
   ],
   repo: ServiceHub.Repo
