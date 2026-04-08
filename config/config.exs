@@ -10,7 +10,17 @@ import Config
 config :service_hub, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,
-  queues: [default: 10],
+  queues: [
+    default: 10,
+    health_checks: 20,
+    version_checks: 10,
+    notifications: 5,
+    maintenance: 1
+  ],
+  plugins: [
+    {Oban.Plugins.Cron, crontab: []},
+    {Oban.Plugins.Pruner, max_age: 86_400}
+  ],
   repo: ServiceHub.Repo
 
 config :service_hub, :scopes,
