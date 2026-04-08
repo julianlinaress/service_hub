@@ -1,0 +1,44 @@
+name: Test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run tests in Docker
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres_dev
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: service_hub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres_dev -d service_hub_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run CI checks in Elixir container
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$PWD:/app" \
+            -w /app \
+            -e MIX_ENV=test \
+            -e DATABASE_URL="ecto://postgres_dev:postgres@localhost:5432/service_hub_test" \
+            docker.io/hexpm/elixir:1.19.3-erlang-28.1-debian-trixie-20260316-slim \
+            bash -lc "mix local.hex --force && mix local.rebar --force && mix deps.get && mix precommit"
