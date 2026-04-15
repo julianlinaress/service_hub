@@ -83,6 +83,37 @@ Phoenix uses these runtime settings to call `service_hub_notifier`:
 
 - `NOTIFIER_BASE_URL` (default: `http://localhost:8081`)
 - `NOTIFIER_TIMEOUT_MS` (default: `5000`)
+- `NOTIFIER_INTERNAL_SERVICE_TOKEN` (required in production)
+
+Phoenix sends:
+
+- `Authorization: Bearer <NOTIFIER_INTERNAL_SERVICE_TOKEN>`
+- `X-Request-Id` and `X-Attempt-Id` headers derived from `delivery_attempt_key`
+
+## Production Deployment (Single VM)
+
+Use the production compose stack:
+
+- `docker-compose.prod.yml`
+
+Architecture:
+
+- `nginx` (public edge)
+- `phoenix` (`service_hub`)
+- `notifier` (`service_hub_notifier`, private-only)
+
+All services run on the private bridge network `service_hub_net`.
+Notifier is not exposed publicly and is reachable only through internal DNS:
+
+- `http://notifier:8081`
+
+1. Copy `.env.prod.example` to `.env.prod` and fill real values.
+2. Export `PHOENIX_IMAGE` and `NOTIFIER_IMAGE` with immutable tags (`sha-*` or `v*`).
+3. Start stack:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
 
 ## Quality Checks
 
