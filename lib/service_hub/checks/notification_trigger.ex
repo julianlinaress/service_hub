@@ -98,10 +98,15 @@ defmodule ServiceHub.Checks.NotificationTrigger do
       }
 
       event_name = "health.#{severity}"
-      Events.emit(event_name, event_payload, tags: event_tags)
+      event_id = Ecto.UUID.generate()
+
+      Events.emit(event_name, event_payload,
+        id: event_id,
+        tags: event_tags
+      )
 
       # Enqueue async delivery to notification channels
-      %{event: %{name: event_name, payload: event_payload, tags: event_tags}}
+      %{event: %{id: event_id, name: event_name, payload: event_payload, tags: event_tags}}
       |> NotificationWorker.new()
       |> Oban.insert()
 
@@ -191,10 +196,15 @@ defmodule ServiceHub.Checks.NotificationTrigger do
       }
 
       event_name = "version.#{severity}"
-      Events.emit(event_name, event_payload, tags: event_tags)
+      event_id = Ecto.UUID.generate()
+
+      Events.emit(event_name, event_payload,
+        id: event_id,
+        tags: event_tags
+      )
 
       # Enqueue async delivery to notification channels
-      %{event: %{name: event_name, payload: event_payload, tags: event_tags}}
+      %{event: %{id: event_id, name: event_name, payload: event_payload, tags: event_tags}}
       |> NotificationWorker.new()
       |> Oban.insert()
 

@@ -10,8 +10,10 @@ defmodule ServiceHub.Notifications.EventHandler do
   import Ecto.Query
 
   alias ServiceHub.Notifications.DeliveryAttempts
+  alias ServiceHub.Notifications.NotificationChannel
   alias ServiceHub.Notifications.ServiceNotificationRule
   alias ServiceHub.Repo
+  alias ServiceHub.Workers.NotificationDeliveryWorker
 
   @doc """
   Handles a notification event and routes it to configured channels.
@@ -59,6 +61,45 @@ defmodule ServiceHub.Notifications.EventHandler do
     end)
 
     :ok
+  end
+
+  @doc """
+  Resolves target channels for an event, persists delivery attempts, and enqueues
+  dedicated delivery jobs handled by Oban.
+  """
+  def enqueue_deliveries(event, opts \\ []) do
+    event_name = Map.get(event, :name) || Map.get(event, "name")
+    payload = Map.get(event, :payload) || Map.get(event, "payload") || %{}
+    tags = Map.get(event, :tags) || Map.get(event, "tags") || %{}
+    event_id = Map.get(event, :id) || Map.get(event, "id")
+
+    if is_nil(event_id) do
+      Logger.warning("Skipping delivery enqueue because event id is missing")
+      :ok
+    else
+      service_id = Map.get(payload, "service_id")
+      check_type = Map.get(payload, "check_type")
+      severity = extract_severity(event_name)
+      source = Map.get(tags, "source", "automatic")
+      only_channel_id = Keyword.get(opts, :only_channel_id)
+
+      channels =
+        resolve_channels_for_delivery(
+          service_id,
+          check_type,
+          severity,
+          source,
+          only_channel_id
+        )
+
+      Enum.each(channels, fn channel ->
+        event_id
+        |> maybe_upsert_attempt(channel, event)
+        |> maybe_enqueue_delivery_job()
+      end)
+
+      :ok
+    end
   end
 
   # Private Functions
@@ -135,6 +176,43 @@ defmodule ServiceHub.Notifications.EventHandler do
       rule_matches?(rule, check_type, severity, source)
     end)
   end
+
+  defp resolve_channels_for_delivery(
+         _service_id,
+         _check_type,
+         _severity,
+         _source,
+         only_channel_id
+       )
+       when not is_nil(only_channel_id) do
+    case parse_channel_id(only_channel_id) do
+      nil -> []
+      channel_id -> load_enabled_channel(channel_id)
+    end
+  end
+
+  defp resolve_channels_for_delivery(service_id, check_type, severity, source, _only_channel_id) do
+    load_applicable_rules(service_id, check_type, severity, source, nil)
+    |> Enum.map(& &1.channel)
+  end
+
+  defp load_enabled_channel(channel_id) do
+    NotificationChannel
+    |> where([channel], channel.id == ^channel_id and channel.enabled == true)
+    |> preload([:telegram_account, :telegram_destination])
+    |> Repo.all()
+  end
+
+  defp parse_channel_id(channel_id) when is_integer(channel_id), do: channel_id
+
+  defp parse_channel_id(channel_id) when is_binary(channel_id) do
+    case Integer.parse(channel_id) do
+      {parsed_channel_id, ""} -> parsed_channel_id
+      _ -> nil
+    end
+  end
+
+  defp parse_channel_id(_), do: nil
 
   defp maybe_filter_only_channel(query, nil), do: query
 
@@ -403,6 +481,34 @@ defmodule ServiceHub.Notifications.EventHandler do
         Logger.warning("Failed to upsert delivery attempt: #{inspect(changeset)}")
         nil
     end
+  end
+
+  defp maybe_enqueue_delivery_job(nil), do: :ok
+
+  defp maybe_enqueue_delivery_job(attempt) do
+    attempt
+    |> delivery_job_changeset()
+    |> Oban.insert()
+    |> case do
+      {:ok, _job} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to enqueue notification delivery job: #{inspect(reason)}")
+        :ok
+    end
+  end
+
+  defp delivery_job_changeset(attempt) do
+    %{attempt_id: attempt.id}
+    |> NotificationDeliveryWorker.new(
+      unique: [
+        fields: [:worker, :args],
+        keys: [:attempt_id],
+        period: 86_400,
+        states: [:available, :scheduled, :executing, :retryable]
+      ]
+    )
   end
 
   defp maybe_mark_attempt_started(nil), do: :ok

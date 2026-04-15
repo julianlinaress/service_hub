@@ -1,10 +1,9 @@
 defmodule ServiceHub.Workers.NotificationWorker do
   @moduledoc """
-  Oban worker for async notification delivery to Telegram/Slack.
+  Oban worker for async notification orchestration.
 
-  Decouples HTTP delivery from check execution so slow API calls
-  don't delay automation result recording. Failed deliveries are
-  retried up to 3 times with exponential backoff.
+  Resolves channels and enqueues dedicated delivery attempt jobs.
+  Actual provider delivery happens in `NotificationDeliveryWorker`.
   """
   use Oban.Worker, queue: :notifications, max_attempts: 3
 
@@ -20,8 +19,9 @@ defmodule ServiceHub.Workers.NotificationWorker do
         value -> [only_channel_id: value]
       end
 
-    EventHandler.handle_event(
+    EventHandler.enqueue_deliveries(
       %{
+        id: event["id"],
         name: event["name"],
         payload: event["payload"],
         tags: event["tags"]
