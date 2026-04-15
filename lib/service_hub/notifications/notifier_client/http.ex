@@ -9,8 +9,9 @@ defmodule ServiceHub.Notifications.NotifierClient.HTTP do
   def deliver(request, opts \\ []) do
     url = notifier_base_url() <> "/api/v1/deliveries"
     timeout = Keyword.get(opts, :timeout, notifier_timeout())
+    headers = notifier_headers(request)
 
-    case Req.post(url, json: request, receive_timeout: timeout) do
+    case Req.post(url, json: request, receive_timeout: timeout, headers: headers) do
       {:ok, %{status: status, body: body}} when status in [200, 201] ->
         {:ok,
          %{
@@ -73,5 +74,24 @@ defmodule ServiceHub.Notifications.NotifierClient.HTTP do
 
   defp notifier_timeout do
     Application.get_env(:service_hub, :notifier_timeout_ms, @default_timeout)
+  end
+
+  defp notifier_headers(request) do
+    token = Application.get_env(:service_hub, :notifier_internal_service_token, "")
+
+    base_headers =
+      if is_binary(token) and token != "" do
+        [{"authorization", "Bearer " <> token}]
+      else
+        []
+      end
+
+    attempt_id = Map.get(request, "delivery_attempt_key")
+
+    if is_binary(attempt_id) and attempt_id != "" do
+      [{"x-request-id", attempt_id}, {"x-attempt-id", attempt_id} | base_headers]
+    else
+      base_headers
+    end
   end
 end

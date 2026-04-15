@@ -47,6 +47,7 @@ config :service_hub,
 config :service_hub,
   notifier_base_url: "http://localhost:8081",
   notifier_timeout_ms: 5_000,
+  notifier_internal_service_token: "",
   notifier_client_impl: ServiceHub.Notifications.NotifierClient.HTTP
 
 # Configure the endpoint

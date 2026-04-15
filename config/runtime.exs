@@ -40,7 +40,8 @@ config :service_hub, ServiceHubWeb.Endpoint,
 
 config :service_hub,
   notifier_base_url: System.get_env("NOTIFIER_BASE_URL", "http://localhost:8081"),
-  notifier_timeout_ms: String.to_integer(System.get_env("NOTIFIER_TIMEOUT_MS", "5000"))
+  notifier_timeout_ms: String.to_integer(System.get_env("NOTIFIER_TIMEOUT_MS", "5000")),
+  notifier_internal_service_token: System.get_env("NOTIFIER_INTERNAL_SERVICE_TOKEN", "")
 
 if config_env() == :prod do
   config :service_hub,
@@ -50,7 +51,10 @@ if config_env() == :prod do
     github_oauth_client_secret:
       System.get_env("GITHUB_OAUTH_CLIENT_SECRET") ||
         raise("environment variable GITHUB_OAUTH_CLIENT_SECRET is missing"),
-    github_oauth_base_url: System.get_env("GITHUB_OAUTH_BASE_URL", "https://api.github.com")
+    github_oauth_base_url: System.get_env("GITHUB_OAUTH_BASE_URL", "https://api.github.com"),
+    notifier_internal_service_token:
+      System.get_env("NOTIFIER_INTERNAL_SERVICE_TOKEN") ||
+        raise("environment variable NOTIFIER_INTERNAL_SERVICE_TOKEN is missing")
 
   database_url =
     System.get_env("DATABASE_URL") ||
