@@ -9,6 +9,7 @@ defmodule ServiceHub.Notifications.EventHandler do
   require Logger
   import Ecto.Query
 
+  alias ServiceHub.Notifications.DeliveryAttempts
   alias ServiceHub.Notifications.ServiceNotificationRule
   alias ServiceHub.Repo
 
@@ -24,11 +25,10 @@ defmodule ServiceHub.Notifications.EventHandler do
   - metadata: Additional context
   """
   def handle_event(event, opts \\ []) do
-    %{
-      name: event_name,
-      payload: payload,
-      tags: tags
-    } = event
+    event_name = Map.get(event, :name) || Map.get(event, "name")
+    payload = Map.get(event, :payload) || Map.get(event, "payload") || %{}
+    tags = Map.get(event, :tags) || Map.get(event, "tags") || %{}
+    event_id = Map.get(event, :id) || Map.get(event, "id")
 
     service_id = Map.get(payload, "service_id")
     deployment_id = Map.get(payload, "deployment_id")
@@ -45,7 +45,9 @@ defmodule ServiceHub.Notifications.EventHandler do
 
     # Send to each channel
     Enum.each(rules, fn rule ->
-      deliver_to_channel(
+      deliver_to_channel_with_attempt(
+        event_id,
+        event,
         rule.channel,
         service_id,
         deployment_id,
@@ -60,6 +62,53 @@ defmodule ServiceHub.Notifications.EventHandler do
   end
 
   # Private Functions
+
+  defp deliver_to_channel_with_attempt(
+         event_id,
+         event,
+         channel,
+         service_id,
+         deployment_id,
+         check_type,
+         severity,
+         message,
+         metadata
+       ) do
+    attempt = maybe_upsert_attempt(event_id, channel, event)
+    maybe_mark_attempt_started(attempt)
+
+    try do
+      case deliver_to_channel(
+             channel,
+             service_id,
+             deployment_id,
+             check_type,
+             severity,
+             message,
+             metadata
+           ) do
+        {:ok, response} ->
+          maybe_mark_attempt_delivered(attempt, response)
+          update_channel_success(channel)
+          :ok
+
+        {:error, reason, response} ->
+          maybe_mark_attempt_failed(attempt, reason, response)
+          update_channel_error(channel, inspect(reason))
+          :ok
+
+        {:error, reason} ->
+          maybe_mark_attempt_failed(attempt, reason, %{})
+          update_channel_error(channel, inspect(reason))
+          :ok
+      end
+    rescue
+      error ->
+        maybe_mark_attempt_failed(attempt, error, %{})
+        update_channel_error(channel, inspect(error))
+        :ok
+    end
+  end
 
   defp extract_severity(event_name) do
     cond do
@@ -157,16 +206,8 @@ defmodule ServiceHub.Notifications.EventHandler do
 
       _ ->
         Logger.warning("Unknown provider: #{channel.provider}")
-        :ok
+        {:error, {:unknown_provider, channel.provider}}
     end
-  rescue
-    error ->
-      Logger.error("Failed to deliver notification to channel #{channel.id}: #{inspect(error)}")
-
-      # Update channel with last error
-      update_channel_error(channel, inspect(error))
-
-      :ok
   end
 
   def send_telegram(channel, _service_id, deployment_id, check_type, severity, message, metadata) do
@@ -194,16 +235,26 @@ defmodule ServiceHub.Notifications.EventHandler do
       end
 
     case Req.post(url, json: request_payload) do
-      {:ok, %{status: 200}} ->
-        :ok
+      {:ok, %{status: 200, body: body}} ->
+        {:ok,
+         %{
+           "provider_message_id" => telegram_message_id(body),
+           "provider_response_code" => "200",
+           "provider_response" => normalize_provider_body(body)
+         }}
 
       {:ok, response} ->
         Logger.warning("Telegram API returned non-200: #{inspect(response)}")
-        {:error, :telegram_api_error}
+
+        {:error, :telegram_api_error,
+         %{
+           "provider_response_code" => to_string(response.status),
+           "provider_response" => normalize_provider_body(response.body)
+         }}
 
       {:error, reason} ->
         Logger.error("Failed to send Telegram message: #{inspect(reason)}")
-        {:error, reason}
+        {:error, reason, %{}}
     end
   end
 
@@ -238,16 +289,25 @@ defmodule ServiceHub.Notifications.EventHandler do
 
     # Send via Slack webhook
     case Req.post(webhook_url, json: formatted_message) do
-      {:ok, %{status: 200}} ->
-        :ok
+      {:ok, %{status: 200, body: body}} ->
+        {:ok,
+         %{
+           "provider_response_code" => "200",
+           "provider_response" => normalize_provider_body(body)
+         }}
 
       {:ok, response} ->
         Logger.warning("Slack webhook returned non-200: #{inspect(response)}")
-        {:error, :slack_webhook_error}
+
+        {:error, :slack_webhook_error,
+         %{
+           "provider_response_code" => to_string(response.status),
+           "provider_response" => normalize_provider_body(response.body)
+         }}
 
       {:error, reason} ->
         Logger.error("Failed to send Slack message: #{inspect(reason)}")
-        {:error, reason}
+        {:error, reason, %{}}
     end
   end
 
@@ -323,4 +383,70 @@ defmodule ServiceHub.Notifications.EventHandler do
 
     Repo.update(changeset)
   end
+
+  defp update_channel_success(channel) do
+    changeset =
+      Ecto.Changeset.change(channel, %{
+        last_error: nil,
+        last_sent_at: DateTime.utc_now()
+      })
+
+    Repo.update(changeset)
+  end
+
+  defp maybe_upsert_attempt(event_id, channel, event) do
+    case DeliveryAttempts.upsert_pending_attempt(event_id, channel, event) do
+      {:ok, attempt} ->
+        attempt
+
+      {:error, changeset} ->
+        Logger.warning("Failed to upsert delivery attempt: #{inspect(changeset)}")
+        nil
+    end
+  end
+
+  defp maybe_mark_attempt_started(nil), do: :ok
+
+  defp maybe_mark_attempt_started(attempt) do
+    case DeliveryAttempts.mark_attempt_started(attempt) do
+      {:ok, _attempt} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning("Failed to mark attempt started: #{inspect(changeset)}")
+    end
+  end
+
+  defp maybe_mark_attempt_delivered(nil, _response), do: :ok
+
+  defp maybe_mark_attempt_delivered(attempt, response) do
+    case DeliveryAttempts.mark_attempt_delivered(attempt, response) do
+      {:ok, _attempt} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning("Failed to mark attempt delivered: #{inspect(changeset)}")
+    end
+  end
+
+  defp maybe_mark_attempt_failed(nil, _reason, _response), do: :ok
+
+  defp maybe_mark_attempt_failed(attempt, reason, response) do
+    case DeliveryAttempts.mark_attempt_failed(attempt, reason, response) do
+      {:ok, _attempt} ->
+        :ok
+
+      {:error, changeset} ->
+        Logger.warning("Failed to mark attempt failed: #{inspect(changeset)}")
+    end
+  end
+
+  defp normalize_provider_body(body) when is_map(body), do: body
+  defp normalize_provider_body(body) when is_binary(body), do: %{"raw" => body}
+  defp normalize_provider_body(_body), do: %{}
+
+  defp telegram_message_id(%{"result" => %{"message_id" => message_id}}),
+    do: to_string(message_id)
+
+  defp telegram_message_id(_), do: nil
 end

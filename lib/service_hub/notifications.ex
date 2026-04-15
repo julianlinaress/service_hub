@@ -10,6 +10,7 @@ defmodule ServiceHub.Notifications do
   alias ServiceHub.Accounts.Scope
   alias ServiceHub.Notifications.NotificationChannel
   alias ServiceHub.Notifications.ServiceNotificationRule
+  alias ServiceHub.Notifications.Events
   alias ServiceHub.Notifications.Telegram
   alias ServiceHub.Notifications.TelegramAccount
   alias ServiceHub.Notifications.TelegramDestination
@@ -87,7 +88,10 @@ defmodule ServiceHub.Notifications do
   def enqueue_channel_test_notification(%Scope{} = scope, %NotificationChannel{} = channel) do
     true = channel.user_id == scope.user.id
 
+    event_id = Ecto.UUID.generate()
+
     event = %{
+      "id" => event_id,
       "name" => "health.info",
       "payload" => %{
         "service_id" => 0,
@@ -104,6 +108,12 @@ defmodule ServiceHub.Notifications do
         "source" => "manual"
       }
     }
+
+    Events.emit(event["name"], event["payload"],
+      id: event_id,
+      tags: event["tags"],
+      actor: "notification_channel_test"
+    )
 
     %{event: event, channel_id: channel.id}
     |> NotificationWorker.new(max_attempts: 1)
