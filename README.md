@@ -9,7 +9,8 @@ It centralizes provider connectivity, service metadata, deployment checks, and n
 - Service and deployment management per user scope
 - Manual and scheduled health/version checks
 - Notification rules by service and severity
-- Telegram and Slack channel delivery
+- Oban-orchestrated delivery attempts with persistent status
+- External notifier transport service (`service_hub_notifier`) for Telegram/Slack sends
 - Internal notification event persistence with retention
 - Telegram destination discovery flow (bot account + discovered chats)
 
@@ -50,7 +51,23 @@ Optional runtime controls include `PORT`, `POOL_SIZE`, and `ECTO_IPV6`.
 
 ## Notifications Overview
 
-Notification channels are user-owned and support provider-specific delivery.
+Notification channels are user-owned and support provider-specific destinations.
+
+Notification flow is fully orchestrated by Phoenix + Oban:
+
+1. check/domain event occurs
+2. Phoenix persists `notification_events`
+3. Phoenix resolves service rules and channels
+4. Phoenix persists `notification_delivery_attempts`
+5. Oban enqueues and executes delivery jobs
+6. worker calls `service_hub_notifier` (`POST /api/v1/deliveries`)
+7. attempt status/result is persisted
+
+Transport details are outside this repo in the separate Go repository:
+
+- `service_hub_notifier`
+
+Phoenix remains the source of truth for business rules, persistence, and retries.
 
 For Telegram, the app now separates:
 
@@ -59,6 +76,13 @@ For Telegram, the app now separates:
 - channel routing (`notification_channels` + service rules)
 
 This avoids copy-pasting raw `chat_id` values and supports destination discovery from Telegram updates.
+
+## Notifier Configuration
+
+Phoenix uses these runtime settings to call `service_hub_notifier`:
+
+- `NOTIFIER_BASE_URL` (default: `http://localhost:8081`)
+- `NOTIFIER_TIMEOUT_MS` (default: `5000`)
 
 ## Quality Checks
 

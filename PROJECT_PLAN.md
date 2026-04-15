@@ -13,10 +13,11 @@ It provides provider connectivity, deployment checks, automations, and notificat
 - Service management linked to providers
 - Deployment model (host/env scoped instances per service)
 - Manual checks (health/version)
-- Oban-based background jobs for periodic health/version checks, async notification delivery, and retention cleanup
+- Oban-based background jobs for periodic health/version checks, notification orchestration, and retention cleanup
 - Notification channels and per-service notification rules
 - Notification event persistence + retention cleanup
-- Telegram + Slack delivery
+- Delivery attempt persistence (`notification_delivery_attempts`) with retry/disposition tracking
+- External transport service (`service_hub_notifier`) for Telegram + Slack delivery
 - Telegram account/destination model with destination discovery
 
 ### In Progress
@@ -41,16 +42,24 @@ It provides provider connectivity, deployment checks, automations, and notificat
 - `notification_channels`: delivery channels
 - `service_notification_rules`: routing config by service
 - `notification_events`: internal event log
+- `notification_delivery_attempts`: concrete provider send attempts with normalized responses
 - `notification_telegram_accounts`: reusable Telegram bot credentials
 - `notification_telegram_destinations`: discovered Telegram chats/channels
 
 ## Notifications Direction
 
-The notification architecture is moving to a reusable account + destination pattern:
+Notification architecture is now split by responsibility:
+
+- Phoenix + Oban own business logic, channel/rule resolution, persistence, retries, and idempotency
+- `service_hub_notifier` (Go, separate repo) owns provider HTTP transport only
+
+Current pattern:
 
 - keep bot credentials once per user/account
 - discover and store destinations separately
 - let channels and rules reference destinations without manual ID hunting
+
+Delivery is executed only from Oban jobs in Phoenix. No LiveView/controller/context path sends Telegram/Slack directly.
 
 This keeps Telegram onboarding safer and prepares the same shape for future providers.
 
@@ -60,6 +69,7 @@ This keeps Telegram onboarding safer and prepares the same shape for future prov
 2. Improve UX for setup and troubleshooting
 3. Maintain clean migration paths for schema evolution
 4. Preserve test coverage around automations and notifications
+5. Keep `service_hub_notifier` as transport-only boundary
 
 ## Delivery Standards
 
