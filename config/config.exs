@@ -44,6 +44,11 @@ config :service_hub,
   ecto_repos: [ServiceHub.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :service_hub,
+  notifier_base_url: "http://localhost:8081",
+  notifier_timeout_ms: 5_000,
+  notifier_client_impl: ServiceHub.Notifications.NotifierClient.HTTP
+
 # Configure the endpoint
 config :service_hub, ServiceHubWeb.Endpoint,
   url: [host: "localhost"],

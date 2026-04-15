@@ -38,6 +38,10 @@ end
 config :service_hub, ServiceHubWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "9020"))]
 
+config :service_hub,
+  notifier_base_url: System.get_env("NOTIFIER_BASE_URL", "http://localhost:8081"),
+  notifier_timeout_ms: String.to_integer(System.get_env("NOTIFIER_TIMEOUT_MS", "5000"))
+
 if config_env() == :prod do
   config :service_hub,
     github_oauth_client_id:
