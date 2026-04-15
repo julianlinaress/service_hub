@@ -18,7 +18,7 @@ ARG DEBIAN_VERSION=trixie-20260112-slim
 ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="docker.io/debian:${DEBIAN_VERSION}"
 
-FROM ${BUILDER_IMAGE} AS builder
+FROM ${BUILDER_IMAGE} AS base
 
 # install build dependencies
 RUN apt-get update \
@@ -32,37 +32,39 @@ WORKDIR /app
 RUN mix local.hex --force \
   && mix local.rebar --force
 
-# set build ENV
+FROM base AS dev
+
+ENV MIX_ENV="dev"
+
+COPY mix.exs mix.lock ./
+COPY config/config.exs config/${MIX_ENV}.exs config/
+RUN mix deps.get && mix deps.compile
+
+COPY assets assets
+RUN mix assets.setup
+
+CMD ["mix", "phx.server"]
+
+FROM base AS deps
+
 ENV MIX_ENV="prod"
 
-# install mix dependencies
 COPY mix.exs mix.lock ./
-RUN mix deps.get --only $MIX_ENV
-RUN mkdir config
-
-# copy compile-time config files before we compile dependencies
-# to ensure any relevant config change will trigger the dependencies
-# to be re-compiled.
 COPY config/config.exs config/${MIX_ENV}.exs config/
-RUN mix deps.compile
+RUN mix deps.get --only $MIX_ENV && mix deps.compile
+
+FROM deps AS builder
 
 RUN mix assets.setup
 
 COPY priv priv
-
 COPY lib lib
-
-# Compile the release
 RUN mix compile
 
 COPY assets assets
-
-# compile assets
 RUN mix assets.deploy
 
-# Changes to config/runtime.exs don't require recompiling the code
 COPY config/runtime.exs config/
-
 COPY rel rel
 RUN mix release
 
@@ -83,15 +85,19 @@ ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
 WORKDIR "/app"
-RUN chown nobody /app
 
 # set runner ENV
 ENV MIX_ENV="prod"
 
-# Only copy the final release from the build stage
-COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/service_hub ./
+RUN groupadd --system --gid 1001 app \
+  && useradd --system --uid 1001 --gid app --home-dir /app --no-create-home app
 
-USER nobody
+# Only copy the final release from the build stage
+COPY --from=builder --chown=app:app /app/_build/${MIX_ENV}/rel/service_hub ./
+
+EXPOSE 4000
+
+USER app
 
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`

@@ -1,11 +1,23 @@
 import Config
 
+db_username = System.get_env("DB_USERNAME", "postgres_dev")
+db_password = System.get_env("DB_PASSWORD", "postgres")
+db_hostname = System.get_env("DB_HOST", "localhost")
+db_port = String.to_integer(System.get_env("DB_PORT", "5432"))
+db_name = System.get_env("DB_NAME", "service_hub_dev")
+
+bind_ip =
+  if System.get_env("PHX_BIND_ALL") in ~w(true 1),
+    do: {0, 0, 0, 0},
+    else: {127, 0, 0, 1}
+
 # Configure your database
 config :service_hub, ServiceHub.Repo,
-  username: "postgres_dev",
-  password: "postgres",
-  hostname: "localhost",
-  database: "service_hub_dev",
+  username: db_username,
+  password: db_password,
+  hostname: db_hostname,
+  port: db_port,
+  database: db_name,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -19,7 +31,7 @@ config :service_hub, ServiceHub.Repo,
 config :service_hub, ServiceHubWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}],
+  http: [ip: bind_ip],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

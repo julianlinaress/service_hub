@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    image: service_hub:dev
+    network_mode: host
+    container_name: service_hub_app_dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      MIX_ENV: dev
+      PHX_SERVER: "true"
+      PHX_BIND_ALL: "true"
+      PORT: "9020"
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-service_hub_dev}
+      DB_USERNAME: ${DB_USERNAME:-postgres_dev}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SECRET_KEY_BASE: dev_only_secret_key_base_change_in_real_env
+      PHX_HOST: localhost
+    ports:
+      - "9020:9020"
+    volumes:
+      - .:/app
+      - mix_deps:/app/deps
+      - mix_build:/app/_build
+      - assets_node_modules:/app/assets/node_modules
+    command: sh -c "mix deps.get && mix ecto.migrate && mix phx.server"
+
+volumes:
+  mix_deps:
+  mix_build:
+  assets_node_modules:

@@ -36,7 +36,7 @@ if config_env() in [:dev, :test] do
 end
 
 config :service_hub, ServiceHubWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+  http: [port: String.to_integer(System.get_env("PORT", "9020"))]
 
 if config_env() == :prod do
   config :service_hub,
