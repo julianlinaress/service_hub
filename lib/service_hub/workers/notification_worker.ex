@@ -11,12 +11,23 @@ defmodule ServiceHub.Workers.NotificationWorker do
   alias ServiceHub.Notifications.EventHandler
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"event" => event}}) do
-    EventHandler.handle_event(%{
-      name: event["name"],
-      payload: event["payload"],
-      tags: event["tags"]
-    })
+  def perform(%Oban.Job{args: %{"event" => event} = args}) do
+    channel_id = Map.get(args, "channel_id") || Map.get(event, "channel_id")
+
+    opts =
+      case channel_id do
+        nil -> []
+        value -> [only_channel_id: value]
+      end
+
+    EventHandler.handle_event(
+      %{
+        name: event["name"],
+        payload: event["payload"],
+        tags: event["tags"]
+      },
+      opts
+    )
 
     :ok
   end

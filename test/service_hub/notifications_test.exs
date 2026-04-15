@@ -1,10 +1,12 @@
 defmodule ServiceHub.NotificationsTest do
   use ServiceHub.DataCase
+  use Oban.Testing, repo: ServiceHub.Repo
 
   alias ServiceHub.Notifications
   alias ServiceHub.Notifications.NotificationChannel
   alias ServiceHub.Notifications.TelegramAccount
   alias ServiceHub.Notifications.TelegramDestination
+  alias ServiceHub.Workers.NotificationWorker
   alias ServiceHub.Accounts
 
   defmodule TelegramHTTPStub do
@@ -245,6 +247,44 @@ defmodule ServiceHub.NotificationsTest do
                  "telegram_account_id" => to_string(account.id),
                  "config" => %{}
                })
+    end
+  end
+
+  describe "enqueue_channel_test_notification/2" do
+    setup do
+      {:ok, user} =
+        Accounts.register_user(%{email: "queue@example.com", password: "password123password123"})
+
+      scope = %ServiceHub.Accounts.Scope{user: user}
+      channel = channel_fixture(scope)
+
+      %{scope: scope, channel: channel}
+    end
+
+    test "enqueues notification worker job", %{scope: scope, channel: channel} do
+      assert {:ok, _job} = Notifications.enqueue_channel_test_notification(scope, channel)
+
+      assert_enqueued(
+        worker: NotificationWorker,
+        args: %{
+          "channel_id" => channel.id,
+          "event" => %{
+            "name" => "health.info",
+            "payload" => %{
+              "check_type" => "test",
+              "deployment_id" => 0,
+              "message" => "Test notification from ServiceHub",
+              "metadata" => %{
+                "env" => "test",
+                "host" => "test.example.com",
+                "status" => "test"
+              },
+              "service_id" => 0
+            },
+            "tags" => %{"source" => "manual"}
+          }
+        }
+      )
     end
   end
 

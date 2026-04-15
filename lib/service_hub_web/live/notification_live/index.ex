@@ -134,17 +134,17 @@ defmodule ServiceHubWeb.NotificationLive.Index do
   def handle_event("test_channel", %{"id" => id}, socket) do
     channel = Notifications.get_channel!(socket.assigns.current_scope, id)
 
-    case test_channel_delivery(channel) do
-      {:ok, _message} ->
+    case Notifications.enqueue_channel_test_notification(socket.assigns.current_scope, channel) do
+      {:ok, _job} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Test notification sent successfully!")
+         |> put_flash(:info, "Test notification queued successfully!")
          |> stream(:channels, list_channels(socket.assigns.current_scope), reset: true)}
 
       {:error, reason} ->
         {:noreply,
          socket
-         |> put_flash(:error, "Failed to send test notification: #{inspect(reason)}")}
+         |> put_flash(:error, "Failed to queue test notification: #{inspect(reason)}")}
     end
   end
 
@@ -155,73 +155,6 @@ defmodule ServiceHubWeb.NotificationLive.Index do
 
   defp list_channels(current_scope) do
     Notifications.list_channels(current_scope)
-  end
-
-  defp test_channel_delivery(channel) do
-    # Send a test notification using the EventHandler
-    test_event = %{
-      name: "health.info",
-      payload: %{
-        "service_id" => 0,
-        "deployment_id" => 0,
-        "check_type" => "test",
-        "message" => "Test notification from ServiceHub",
-        "metadata" => %{
-          "status" => "test",
-          "host" => "test.example.com",
-          "env" => "test"
-        }
-      },
-      tags: %{
-        "source" => "manual"
-      }
-    }
-
-    # Deliver directly to this channel
-    case deliver_test_to_channel(channel, test_event) do
-      :ok -> {:ok, "Test notification sent"}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp deliver_test_to_channel(channel, event) do
-    payload = event.payload
-    service_id = payload["service_id"]
-    deployment_id = payload["deployment_id"]
-    check_type = payload["check_type"]
-    message = payload["message"]
-    metadata = payload["metadata"]
-
-    # Call the EventHandler's delivery logic directly
-    case channel.provider do
-      "telegram" ->
-        ServiceHub.Notifications.EventHandler.send_telegram(
-          channel,
-          service_id,
-          deployment_id,
-          check_type,
-          "info",
-          message,
-          metadata
-        )
-
-      "slack" ->
-        ServiceHub.Notifications.EventHandler.send_slack(
-          channel.config,
-          service_id,
-          deployment_id,
-          check_type,
-          "info",
-          message,
-          metadata
-        )
-
-      _ ->
-        {:error, "Unknown provider: #{channel.provider}"}
-    end
-  rescue
-    error ->
-      {:error, inspect(error)}
   end
 
   defp format_datetime(nil), do: "Never"

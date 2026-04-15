@@ -15,6 +15,7 @@ defmodule ServiceHub.Notifications do
   alias ServiceHub.Notifications.TelegramDestination
   alias ServiceHub.Repo
   alias ServiceHub.Services.Service
+  alias ServiceHub.Workers.NotificationWorker
 
   # Channel Management
 
@@ -76,6 +77,37 @@ defmodule ServiceHub.Notifications do
   """
   def change_channel(%Scope{} = _scope, %NotificationChannel{} = channel, attrs \\ %{}) do
     NotificationChannel.changeset(channel, attrs)
+  end
+
+  @doc """
+  Enqueues a test notification for a single channel.
+
+  Actual delivery still happens through Oban workers.
+  """
+  def enqueue_channel_test_notification(%Scope{} = scope, %NotificationChannel{} = channel) do
+    true = channel.user_id == scope.user.id
+
+    event = %{
+      "name" => "health.info",
+      "payload" => %{
+        "service_id" => 0,
+        "deployment_id" => 0,
+        "check_type" => "test",
+        "message" => "Test notification from ServiceHub",
+        "metadata" => %{
+          "status" => "test",
+          "host" => "test.example.com",
+          "env" => "test"
+        }
+      },
+      "tags" => %{
+        "source" => "manual"
+      }
+    }
+
+    %{event: event, channel_id: channel.id}
+    |> NotificationWorker.new(max_attempts: 1)
+    |> Oban.insert()
   end
 
   @doc """

@@ -23,7 +23,7 @@ defmodule ServiceHub.Notifications.EventHandler do
   - message: The notification message
   - metadata: Additional context
   """
-  def handle_event(event) do
+  def handle_event(event, opts \\ []) do
     %{
       name: event_name,
       payload: payload,
@@ -38,8 +38,10 @@ defmodule ServiceHub.Notifications.EventHandler do
     metadata = Map.get(payload, "metadata", %{})
     source = Map.get(tags, "source", "automatic")
 
+    only_channel_id = Keyword.get(opts, :only_channel_id)
+
     # Load applicable rules with channels
-    rules = load_applicable_rules(service_id, check_type, severity, source)
+    rules = load_applicable_rules(service_id, check_type, severity, source, only_channel_id)
 
     # Send to each channel
     Enum.each(rules, fn rule ->
@@ -69,7 +71,7 @@ defmodule ServiceHub.Notifications.EventHandler do
     end
   end
 
-  defp load_applicable_rules(service_id, check_type, severity, source) do
+  defp load_applicable_rules(service_id, check_type, severity, source, only_channel_id) do
     now = DateTime.utc_now()
 
     ServiceNotificationRule
@@ -78,10 +80,24 @@ defmodule ServiceHub.Notifications.EventHandler do
     |> where([r, c], r.enabled == true and c.enabled == true)
     |> where([r], is_nil(r.mute_until) or r.mute_until < ^now)
     |> preload([r, c], channel: [:telegram_account, :telegram_destination])
+    |> maybe_filter_only_channel(only_channel_id)
     |> Repo.all()
     |> Enum.filter(fn rule ->
       rule_matches?(rule, check_type, severity, source)
     end)
+  end
+
+  defp maybe_filter_only_channel(query, nil), do: query
+
+  defp maybe_filter_only_channel(query, channel_id) when is_integer(channel_id) do
+    where(query, [r, _c], r.channel_id == ^channel_id)
+  end
+
+  defp maybe_filter_only_channel(query, channel_id) when is_binary(channel_id) do
+    case Integer.parse(channel_id) do
+      {parsed_channel_id, ""} -> where(query, [r, _c], r.channel_id == ^parsed_channel_id)
+      _ -> query
+    end
   end
 
   defp rule_matches?(rule, check_type, severity, source) do
