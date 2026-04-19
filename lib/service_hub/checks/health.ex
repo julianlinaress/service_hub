@@ -35,7 +35,7 @@ defmodule ServiceHub.Checks.Health do
     ]
 
     result =
-      case Req.request(req_opts) do
+      case http_client().request(req_opts) do
         {:ok, %{status: status} = response} ->
           Logger.info("Health check response url=#{url} status=#{status}")
           classify_response(status, response, allowed_statuses, expected_json)
@@ -153,4 +153,8 @@ defmodule ServiceHub.Checks.Health do
   defp result_outcome({:ok, _details}), do: {:ok, :healthy}
   defp result_outcome({:warning, reason}), do: {:warning, reason}
   defp result_outcome({:down, reason}), do: {:error, reason}
+
+  defp http_client do
+    Application.get_env(:service_hub, :http_client, Req)
+  end
 end
