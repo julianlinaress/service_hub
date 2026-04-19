@@ -126,7 +126,7 @@ defmodule ServiceHub.Checks.Health do
 
   # Convert internationalized domain names (IDN) to ASCII-compatible encoding (Punycode)
   # Handles hosts with path components like "example.com/path"
-  # e.g., "idicañada.com.ar/path" -> "xn--idicaada-s3a.com.ar/path"
+  # e.g., "café.example.com/path" -> "xn--caf-dma.example.com/path"
   defp encode_idn_with_path(host) do
     case String.split(host, "/", parts: 2) do
       [domain] ->
