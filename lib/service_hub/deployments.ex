@@ -11,6 +11,17 @@ defmodule ServiceHub.Deployments do
   alias ServiceHub.Repo
   alias ServiceHub.Services.Service
 
+  def list_recent_deployments(%Scope{} = scope, limit \\ 10) do
+    Deployment
+    |> join(:inner, [d], s in assoc(d, :service))
+    |> join(:inner, [_d, s], p in assoc(s, :provider))
+    |> where([d, _s, p], not is_nil(d.last_health_checked_at) and p.user_id == ^scope.user.id)
+    |> preload([_d, _s, _p], service: :provider)
+    |> order_by([d], desc: d.last_health_checked_at)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
   def list_deployments_for_service(%Scope{} = scope, service_id) do
     Deployment
     |> join(:inner, [d], s in assoc(d, :service))

@@ -4,7 +4,7 @@ defmodule ServiceHubWeb.DashboardLive do
   """
   use ServiceHubWeb, :live_view
 
-  alias ServiceHub.{Providers, Services, ServiceClients}
+  alias ServiceHub.{Providers, Services, Deployments}
   alias ServiceHubWeb.Components.ProviderIcon
   alias ServiceHubWeb.Components.Status.HealthBadge
 
@@ -49,28 +49,31 @@ defmodule ServiceHubWeb.DashboardLive do
           </div>
 
           <div
-            :if={Enum.empty?(@recent_installations)}
+            :if={Enum.empty?(@recent_deployments)}
             class="text-center py-8 text-sm text-base-content/50"
           >
             No service installations yet
           </div>
 
-          <div :if={!Enum.empty?(@recent_installations)} class="space-y-2">
+          <div :if={!Enum.empty?(@recent_deployments)} class="space-y-2">
             <div
-              :for={sc <- @recent_installations}
+              :for={deployment <- @recent_deployments}
               class="flex items-center justify-between p-3 rounded hover:bg-base-200"
             >
               <div class="flex items-center gap-4 flex-1">
                 <div>
-                  <div class="font-medium">{sc.service.name}</div>
-                  <div class="text-sm text-base-content/50">{sc.client.name} · {sc.env}</div>
+                  <div class="font-medium">{deployment.name}</div>
+                  <div class="text-sm text-base-content/50">{deployment.env}</div>
                 </div>
               </div>
               <div class="flex items-center gap-4">
                 <code class="text-xs font-mono text-base-content/50">
-                  {sc.current_version || "—"}
+                  {deployment.current_version || "—"}
                 </code>
-                <HealthBadge.health_badge status={sc.last_health_status || "unknown"} size="sm" />
+                <HealthBadge.health_badge
+                  status={deployment.last_health_status || "unknown"}
+                  size="sm"
+                />
               </div>
             </div>
           </div>
@@ -110,12 +113,12 @@ defmodule ServiceHubWeb.DashboardLive do
     end
 
     providers = load_providers(socket.assigns.current_scope)
-    installations = load_installations(socket.assigns.current_scope)
+    deployments = Deployments.list_recent_deployments(socket.assigns.current_scope)
 
     {:ok,
      socket
      |> assign(:providers, providers)
-     |> assign(:recent_installations, Enum.take(installations, 10))}
+     |> assign(:recent_deployments, deployments)}
   end
 
   @impl true
@@ -143,18 +146,6 @@ defmodule ServiceHubWeb.DashboardLive do
       services_count = Services.count_services_for_provider(scope, provider.id)
       Map.put(provider, :services_count, services_count)
     end)
-  end
-
-  defp load_installations(scope) do
-    services = Services.list_services(scope)
-    service_ids = Enum.map(services, & &1.id)
-
-    if Enum.empty?(service_ids) do
-      []
-    else
-      ServiceClients.list_service_clients_for_services(scope, service_ids)
-      |> Enum.sort_by(& &1.last_health_checked_at, {:desc, NaiveDateTime})
-    end
   end
 
   defp provider_key(provider) do
