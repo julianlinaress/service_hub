@@ -21,6 +21,7 @@ defmodule ServiceHubWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/healthz", HealthController, :check
   end
 
   # Other scopes may use custom stacks.
@@ -72,9 +73,6 @@ defmodule ServiceHubWeb.Router do
 
       # Services config (placeholder for future list view)
       # live "/config/services", ServiceLive.Index, :index
-
-      # Clients config (placeholder for future)
-      # live "/config/clients", ClientLive.Index, :index
 
       # System configuration
       live "/config/provider-types", ProviderTypeLive.Index, :index

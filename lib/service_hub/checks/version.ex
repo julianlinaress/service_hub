@@ -38,7 +38,7 @@ defmodule ServiceHub.Checks.Version do
     ]
 
     result =
-      case Req.request(req_opts) do
+      case http_client().request(req_opts) do
         {:ok, %{status: status} = response} ->
           Logger.info("Version check response url=#{url} status=#{status}")
 
@@ -125,6 +125,10 @@ defmodule ServiceHub.Checks.Version do
 
   defp log_parsing(field, _body) do
     Logger.info("Version check parsing field=#{field} from text body")
+  end
+
+  defp http_client do
+    Application.get_env(:service_hub, :http_client, Req)
   end
 
   defp build_headers(%Deployment{api_key: nil}), do: []

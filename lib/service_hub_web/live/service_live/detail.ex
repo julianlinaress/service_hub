@@ -329,6 +329,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
      |> assign(:deployment_action, nil)
      |> assign(:checking_health, nil)
      |> assign(:checking_version, nil)
+     |> assign(:last_manual_check_at, nil)
      |> assign(:server_now, DateTime.utc_now(:second))}
   end
 
@@ -495,32 +496,45 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
 
   defp format_iso8601(other), do: to_string(other)
 
+  defp within_debounce?(nil), do: false
+  defp within_debounce?(last_at), do: DateTime.diff(DateTime.utc_now(), last_at) < 10
+
   @impl true
   def handle_event("check-health", %{"id" => id}, socket) do
-    deployment_id = String.to_integer(id)
-    deployment = Deployments.get_deployment!(socket.assigns.current_scope, deployment_id)
-    service = socket.assigns.service
+    if within_debounce?(socket.assigns.last_manual_check_at) do
+      {:noreply, put_flash(socket, :info, "Please wait before running another check")}
+    else
+      deployment_id = String.to_integer(id)
+      deployment = Deployments.get_deployment!(socket.assigns.current_scope, deployment_id)
+      service = socket.assigns.service
 
-    {:noreply,
-     socket
-     |> assign(:checking_health, deployment_id)
-     |> start_async(:check_health, fn ->
-       Health.run(deployment, service)
-     end)}
+      {:noreply,
+       socket
+       |> assign(:checking_health, deployment_id)
+       |> assign(:last_manual_check_at, DateTime.utc_now())
+       |> start_async(:check_health, fn ->
+         Health.run(deployment, service)
+       end)}
+    end
   end
 
   @impl true
   def handle_event("check-version", %{"id" => id}, socket) do
-    deployment_id = String.to_integer(id)
-    deployment = Deployments.get_deployment!(socket.assigns.current_scope, deployment_id)
-    service = socket.assigns.service
+    if within_debounce?(socket.assigns.last_manual_check_at) do
+      {:noreply, put_flash(socket, :info, "Please wait before running another check")}
+    else
+      deployment_id = String.to_integer(id)
+      deployment = Deployments.get_deployment!(socket.assigns.current_scope, deployment_id)
+      service = socket.assigns.service
 
-    {:noreply,
-     socket
-     |> assign(:checking_version, deployment_id)
-     |> start_async(:check_version, fn ->
-       Version.run(deployment, service)
-     end)}
+      {:noreply,
+       socket
+       |> assign(:checking_version, deployment_id)
+       |> assign(:last_manual_check_at, DateTime.utc_now())
+       |> start_async(:check_version, fn ->
+         Version.run(deployment, service)
+       end)}
+    end
   end
 
   @impl true
@@ -604,6 +618,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_health, nil)
+         |> assign(:last_manual_check_at, nil)
          |> load_deployments()
          |> put_flash(:info, "Health check completed")}
 
@@ -614,6 +629,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_health, nil)
+         |> assign(:last_manual_check_at, nil)
          |> load_deployments()
          |> put_flash(:error, "Health warning: #{format_reason(reason)}")}
 
@@ -624,6 +640,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_health, nil)
+         |> assign(:last_manual_check_at, nil)
          |> load_deployments()
          |> put_flash(:error, "Health check failed: #{format_reason(reason)}")}
     end
@@ -634,6 +651,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     {:noreply,
      socket
      |> assign(:checking_health, nil)
+     |> assign(:last_manual_check_at, nil)
      |> put_flash(:error, "Health check crashed: #{inspect(reason)}")}
   end
 
@@ -658,6 +676,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_version, nil)
+         |> assign(:last_manual_check_at, nil)
          |> load_deployments()
          |> put_flash(:info, "Version check updated")}
 
@@ -668,6 +687,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_version, nil)
+         |> assign(:last_manual_check_at, nil)
          |> put_flash(:info, "Version check is disabled for this deployment")}
 
       {:error, reason, deployment} ->
@@ -677,6 +697,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_version, nil)
+         |> assign(:last_manual_check_at, nil)
          |> load_deployments()
          |> put_flash(:error, "Version check failed: #{format_reason(reason)}")}
     end
@@ -687,6 +708,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     {:noreply,
      socket
      |> assign(:checking_version, nil)
+     |> assign(:last_manual_check_at, nil)
      |> put_flash(:error, "Version check crashed: #{inspect(reason)}")}
   end
 
