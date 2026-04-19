@@ -42,12 +42,19 @@ defmodule ServiceHub.Deployments do
   end
 
   def create_deployment(%Scope{} = scope, attrs) do
-    with {:ok, service} <- fetch_service(scope, service_id_from_attrs(attrs)),
-         changeset <- Deployment.changeset(%Deployment{service_id: service.id}, attrs),
-         {:ok, deployment} <- Repo.insert(changeset) do
-      # Sync automation targets after creation
-      sync_automation_targets(deployment)
-      {:ok, Repo.preload(deployment, service: :provider)}
+    with {:ok, service} <- fetch_service(scope, service_id_from_attrs(attrs)) do
+      Repo.transaction(fn ->
+        changeset = Deployment.changeset(%Deployment{service_id: service.id}, attrs)
+
+        case Repo.insert(changeset) do
+          {:ok, deployment} ->
+            sync_automation_targets(deployment)
+            Repo.preload(deployment, service: :provider)
+
+          {:error, reason} ->
+            Repo.rollback(reason)
+        end
+      end)
     end
   end
 
@@ -55,14 +62,16 @@ defmodule ServiceHub.Deployments do
     deployment = preload_service(deployment)
     true = deployment.service.provider.user_id == scope.user.id
 
-    with {:ok, updated} <-
-           deployment
-           |> Deployment.changeset(attrs)
-           |> Repo.update() do
-      # Sync automation targets after update
-      sync_automation_targets(updated)
-      {:ok, updated}
-    end
+    Repo.transaction(fn ->
+      case deployment |> Deployment.changeset(attrs) |> Repo.update() do
+        {:ok, updated} ->
+          sync_automation_targets(updated)
+          updated
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
   end
 
   def delete_deployment(%Scope{} = scope, %Deployment{} = deployment) do
