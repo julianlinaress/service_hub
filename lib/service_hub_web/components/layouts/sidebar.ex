@@ -51,12 +51,6 @@ defmodule ServiceHubWeb.Layouts.Sidebar do
               icon="hero-cube"
               label="Services"
             />
-            <.nav_item
-              path="/config/clients"
-              current_path={@current_path}
-              icon="hero-building-office"
-              label="Clients"
-            />
           </div>
 
           <div class="pt-4">

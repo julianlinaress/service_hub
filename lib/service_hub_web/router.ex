@@ -74,9 +74,6 @@ defmodule ServiceHubWeb.Router do
       # Services config (placeholder for future list view)
       # live "/config/services", ServiceLive.Index, :index
 
-      # Clients config (placeholder for future)
-      # live "/config/clients", ClientLive.Index, :index
-
       # System configuration
       live "/config/provider-types", ProviderTypeLive.Index, :index
       live "/config/provider-types/new", ProviderTypeLive.Form, :new
