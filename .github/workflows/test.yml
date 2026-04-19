@@ -3,7 +3,7 @@ name: Test
 on:
   push:
     branches: [ "master" ]
-    paths:
+    paths: &test_paths
       - ".github/workflows/test.yml"
       - "lib/**"
       - "test/**"
@@ -16,17 +16,7 @@ on:
       - "Dockerfile"
   pull_request:
     branches: [ "master" ]
-    paths:
-      - ".github/workflows/test.yml"
-      - "lib/**"
-      - "test/**"
-      - "config/**"
-      - "priv/**"
-      - "assets/**"
-      - "mix.exs"
-      - "mix.lock"
-      - ".formatter.exs"
-      - "Dockerfile"
+    paths: *test_paths
 
 permissions:
   contents: read
