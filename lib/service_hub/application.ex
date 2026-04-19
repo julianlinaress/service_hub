@@ -17,6 +17,18 @@ defmodule ServiceHub.Application do
       ServiceHubWeb.Endpoint
     ]
 
+    if Application.get_env(:service_hub, :env, :dev) not in [:dev, :test] do
+      token = Application.get_env(:service_hub, :notifier_internal_service_token, "")
+
+      if is_binary(token) and String.trim(token) == "" do
+        require Logger
+
+        Logger.warning(
+          "NOTIFIER_INTERNAL_SERVICE_TOKEN is not set. Notification delivery will fail."
+        )
+      end
+    end
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: ServiceHub.Supervisor]
