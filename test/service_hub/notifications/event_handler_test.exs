@@ -47,7 +47,12 @@ defmodule ServiceHub.Notifications.EventHandlerTest do
     %{scope: scope, service: service, channel: channel, rule: rule}
   end
 
-  defp emit_and_fetch(event_name, service_id, tags \\ %{"source" => "automatic"}, check_type \\ "health") do
+  defp emit_and_fetch(
+         event_name,
+         service_id,
+         tags \\ %{"source" => "automatic"},
+         check_type \\ "health"
+       ) do
     event_id = Ecto.UUID.generate()
 
     :ok =
@@ -113,7 +118,8 @@ defmodule ServiceHub.Notifications.EventHandlerTest do
       service: service,
       rule: rule
     } do
-      {:ok, _rule} = Notifications.update_service_rule(scope, rule, %{"notify_on_manual" => false})
+      {:ok, _rule} =
+        Notifications.update_service_rule(scope, rule, %{"notify_on_manual" => false})
 
       event = emit_and_fetch("health.alert", service.id, %{"source" => "manual"})
 
