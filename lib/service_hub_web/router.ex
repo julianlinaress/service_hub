@@ -21,6 +21,7 @@ defmodule ServiceHubWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/healthz", HealthController, :check
   end
 
   # Other scopes may use custom stacks.
