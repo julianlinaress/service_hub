@@ -676,6 +676,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_version, nil)
+         |> assign(:last_manual_check_at, nil)
          |> load_deployments()
          |> put_flash(:info, "Version check updated")}
 
@@ -686,6 +687,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_version, nil)
+         |> assign(:last_manual_check_at, nil)
          |> put_flash(:info, "Version check is disabled for this deployment")}
 
       {:error, reason, deployment} ->
@@ -695,6 +697,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
         {:noreply,
          socket
          |> assign(:checking_version, nil)
+         |> assign(:last_manual_check_at, nil)
          |> load_deployments()
          |> put_flash(:error, "Version check failed: #{format_reason(reason)}")}
     end
@@ -705,6 +708,7 @@ defmodule ServiceHubWeb.ServiceLive.Detail do
     {:noreply,
      socket
      |> assign(:checking_version, nil)
+     |> assign(:last_manual_check_at, nil)
      |> put_flash(:error, "Version check crashed: #{inspect(reason)}")}
   end
 
