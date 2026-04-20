@@ -79,10 +79,31 @@ const countdownHook = {
   },
 }
 
+const TelegramLogin = {
+  mounted() {
+    const botUsername = this.el.dataset.botUsername
+    const script = document.createElement("script")
+    script.src = "https://telegram.org/js/telegram-widget.js?22"
+    script.setAttribute("data-telegram-login", botUsername)
+    script.setAttribute("data-size", "medium")
+    script.setAttribute("data-onauth", "onTelegramAuth(user)")
+    script.setAttribute("data-request-access", "write")
+    script.async = true
+    this.el.appendChild(script)
+
+    window.onTelegramAuth = (user) => {
+      this.pushEvent("connect_telegram", user)
+    }
+  },
+  destroyed() {
+    delete window.onTelegramAuth
+  }
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, Countdown: countdownHook},
+  hooks: {...colocatedHooks, Countdown: countdownHook, TelegramLogin},
 })
 
 // Show progress bar on live navigation and form submits
