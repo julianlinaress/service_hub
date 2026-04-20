@@ -48,7 +48,9 @@ config :service_hub,
   notifier_base_url: "http://localhost:8081",
   notifier_timeout_ms: 5_000,
   notifier_internal_service_token: "",
-  notifier_client_impl: ServiceHub.Notifications.NotifierClient.HTTP
+  notifier_client_impl: ServiceHub.Notifications.NotifierClient.HTTP,
+  telegram_bot_token: "",
+  telegram_bot_username: ""
 
 # Configure the endpoint
 config :service_hub, ServiceHubWeb.Endpoint,

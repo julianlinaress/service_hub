@@ -12,11 +12,19 @@ defmodule ServiceHub.Workers.NotificationDeliveryWorkerTest do
   import ServiceHub.AccountsFixtures
   import ServiceHub.ProvidersFixtures
 
+  alias ServiceHub.Notifications.TelegramConnections
   alias ServiceHub.Services.Service
 
   setup do
     scope = user_scope_fixture()
     provider = provider_fixture(scope)
+
+    {:ok, _conn} =
+      TelegramConnections.upsert_connection(scope, %{
+        "telegram_id" => "99999",
+        "first_name" => "Test",
+        "connected_at" => DateTime.utc_now() |> DateTime.truncate(:second)
+      })
 
     service =
       Repo.insert!(%Service{
@@ -31,7 +39,7 @@ defmodule ServiceHub.Workers.NotificationDeliveryWorkerTest do
       Notifications.create_channel(scope, %{
         name: "Telegram Main",
         provider: "telegram",
-        config: %{"token" => "123456:ABC-DEF", "chat_ref" => "@alerts"}
+        config: %{}
       })
 
     {:ok, rule} =
@@ -147,5 +155,25 @@ defmodule ServiceHub.Workers.NotificationDeliveryWorkerTest do
     assert refreshed.status == "failed"
     assert refreshed.error_code == "invalid_destination"
     assert refreshed.failed_at
+  end
+
+  describe "telegram_not_connected" do
+    test "marks attempt failed and returns :ok when no telegram connection", %{attempt: attempt} do
+      Repo.update_all(
+        from(a in ServiceHub.Notifications.DeliveryAttempt, where: a.id == ^attempt.id),
+        set: [
+          destination_snapshot: %{
+            "resolved_destination" => %{"error_code" => "telegram_not_connected"}
+          }
+        ]
+      )
+
+      refreshed = DeliveryAttempts.get_attempt(attempt.id)
+      assert :ok = perform_job(NotificationDeliveryWorker, %{attempt_id: refreshed.id})
+
+      result = DeliveryAttempts.get_attempt(attempt.id)
+      assert result.status == "failed"
+      assert result.error_code == "telegram_not_connected"
+    end
   end
 end

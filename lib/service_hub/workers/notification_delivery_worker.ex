@@ -34,20 +34,34 @@ defmodule ServiceHub.Workers.NotificationDeliveryWorker do
   defp execute_attempt(attempt, attempt_count, job_id) do
     {:ok, started_attempt} = DeliveryAttempts.mark_attempt_started(attempt, attempt_count, job_id)
 
-    request = build_request(started_attempt)
+    destination = get_in(started_attempt.destination_snapshot, ["resolved_destination"]) || %{}
 
-    case NotifierClient.deliver(request) do
-      {:ok, response} ->
-        DeliveryAttempts.mark_attempt_delivered(started_attempt, response)
-        :ok
+    if destination["error_code"] == "telegram_not_connected" do
+      error = %{
+        error_code: "telegram_not_connected",
+        error_message: "User has no active Telegram connection",
+        retryable: false,
+        provider_response: %{}
+      }
 
-      {:error, %{retryable: true} = error} ->
-        DeliveryAttempts.mark_attempt_failed(started_attempt, error, error.provider_response)
-        {:error, {:retryable_delivery_failure, error.error_code}}
+      DeliveryAttempts.mark_attempt_failed(started_attempt, error, %{})
+      :ok
+    else
+      request = build_request(started_attempt)
 
-      {:error, error} ->
-        DeliveryAttempts.mark_attempt_failed(started_attempt, error, error.provider_response)
-        :ok
+      case NotifierClient.deliver(request) do
+        {:ok, response} ->
+          DeliveryAttempts.mark_attempt_delivered(started_attempt, response)
+          :ok
+
+        {:error, %{retryable: true} = error} ->
+          DeliveryAttempts.mark_attempt_failed(started_attempt, error, error.provider_response)
+          {:error, {:retryable_delivery_failure, error.error_code}}
+
+        {:error, error} ->
+          DeliveryAttempts.mark_attempt_failed(started_attempt, error, error.provider_response)
+          :ok
+      end
     end
   end
 

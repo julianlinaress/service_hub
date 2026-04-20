@@ -18,6 +18,18 @@ defmodule ServiceHubWeb.NotificationLive.Index do
         </:actions>
       </.header>
 
+      <div :if={@has_telegram_warning} class="alert alert-warning mb-4">
+        <.icon name="hero-exclamation-triangle" />
+        <div>
+          <p class="font-medium">Telegram not connected</p>
+          <p class="text-sm">
+            You have Telegram channels but no active Telegram connection.
+            <.link navigate={~p"/users/settings"} class="link">Connect Telegram</.link>
+            in Account Settings to resume delivery.
+          </p>
+        </div>
+      </div>
+
       <.table id="channels" rows={@streams.channels}>
         <:col :let={{_id, channel}} label="Name">{channel.name}</:col>
         <:col :let={{_id, channel}} label="Provider">
@@ -90,10 +102,16 @@ defmodule ServiceHubWeb.NotificationLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    scope = socket.assigns.current_scope
+    channels = list_channels(scope)
+    telegram_connection = Notifications.get_telegram_connection(scope)
+    has_telegram_channels = Enum.any?(channels, &(&1.provider == "telegram"))
+
     {:ok,
      socket
      |> assign(:page_title, "Notification Channels")
-     |> stream(:channels, list_channels(socket.assigns.current_scope))}
+     |> assign(:has_telegram_warning, has_telegram_channels and is_nil(telegram_connection))
+     |> stream(:channels, channels)}
   end
 
   @impl true

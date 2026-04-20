@@ -76,7 +76,6 @@ defmodule ServiceHub.Notifications.EventHandler do
   defp load_enabled_channel(channel_id) do
     NotificationChannel
     |> where([channel], channel.id == ^channel_id and channel.enabled == true)
-    |> preload([:telegram_account, :telegram_destination])
     |> Repo.all()
   end
 
@@ -109,7 +108,7 @@ defmodule ServiceHub.Notifications.EventHandler do
     |> where([r, c], r.service_id == ^service_id)
     |> where([r, c], r.enabled == true and c.enabled == true)
     |> where([r], is_nil(r.mute_until) or r.mute_until < ^now)
-    |> preload([r, c], channel: [:telegram_account, :telegram_destination])
+    |> preload([r, c], channel: [])
     |> Repo.all()
     |> Enum.filter(fn rule ->
       rule_matches?(rule, check_type, severity, source)
