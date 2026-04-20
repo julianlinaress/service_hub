@@ -8,7 +8,7 @@ defmodule ServiceHub.Notifications do
 
   alias ServiceHub.Notifications.Channels
   alias ServiceHub.Notifications.Rules
-  alias ServiceHub.Notifications.TelegramAccounts
+  alias ServiceHub.Notifications.TelegramConnections
 
   # Channel Management
 
@@ -20,11 +20,12 @@ defmodule ServiceHub.Notifications do
   defdelegate change_channel(scope, channel, attrs \\ %{}), to: Channels
   defdelegate enqueue_channel_test_notification(scope, channel), to: Channels
 
-  # Telegram Accounts & Destinations
+  # Telegram Connection
 
-  defdelegate list_telegram_accounts(scope), to: TelegramAccounts
-  defdelegate list_telegram_destinations(scope, account_id), to: TelegramAccounts
-  defdelegate discover_telegram_destinations(scope, channel_attrs), to: TelegramAccounts
+  defdelegate get_telegram_connection(scope), to: TelegramConnections, as: :get_connection
+  defdelegate upsert_telegram_connection(scope, attrs), to: TelegramConnections, as: :upsert_connection
+  defdelegate delete_telegram_connection(scope), to: TelegramConnections, as: :delete_connection
+  defdelegate verify_telegram_widget_payload(params), to: TelegramConnections, as: :verify_widget_payload
 
   # Service Notification Rules
 
