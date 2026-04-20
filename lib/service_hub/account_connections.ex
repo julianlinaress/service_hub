@@ -11,6 +11,13 @@ defmodule ServiceHub.AccountConnections do
     |> Repo.one()
   end
 
+  def delete_connection(%Scope{} = scope, provider_key) when is_binary(provider_key) do
+    case get_connection(scope, provider_key) do
+      nil -> {:ok, nil}
+      connection -> Repo.delete(connection)
+    end
+  end
+
   def upsert_connection(%Scope{} = scope, provider_key, attrs) when is_binary(provider_key) do
     existing = get_connection(scope, provider_key) || %AccountConnection{}
 
