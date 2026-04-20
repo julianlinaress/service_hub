@@ -82,7 +82,9 @@ defmodule ServiceHubWeb.UserLive.Settings do
             <div>
               <span class="badge badge-success">Connected</span>
               <%= if @github_connection.scope do %>
-                <span class="text-xs text-base-content/60 ml-2">Scope: {@github_connection.scope}</span>
+                <span class="text-xs text-base-content/60 ml-2">
+                  Scope: {@github_connection.scope}
+                </span>
               <% end %>
             </div>
             <div class="flex gap-2">
@@ -190,7 +192,10 @@ defmodule ServiceHubWeb.UserLive.Settings do
       |> assign(:trigger_submit, false)
       |> assign(:github_connection, AccountConnections.get_connection(scope, "github"))
       |> assign(:telegram_connection, Notifications.get_telegram_connection(scope))
-      |> assign(:telegram_bot_username, Application.get_env(:service_hub, :telegram_bot_username, ""))
+      |> assign(
+        :telegram_bot_username,
+        Application.get_env(:service_hub, :telegram_bot_username, "")
+      )
 
     {:ok, socket}
   end
@@ -213,7 +218,10 @@ defmodule ServiceHubWeb.UserLive.Settings do
     {:noreply,
      socket
      |> assign(:telegram_connection, nil)
-     |> put_flash(:info, "Telegram disconnected. Telegram channels will not deliver until you reconnect.")}
+     |> put_flash(
+       :info,
+       "Telegram disconnected. Telegram channels will not deliver until you reconnect."
+     )}
   end
 
   def handle_event("connect_telegram", params, socket) do

@@ -41,6 +41,7 @@ defmodule ServiceHub.Repo.Migrations.RefactorTelegramToConnectionModel do
       add :telegram_account_id,
           references(:notification_telegram_accounts, on_delete: :delete_all),
           null: false
+
       add :chat_ref, :string, null: false
       add :chat_type, :string
       add :title, :string
@@ -55,6 +56,7 @@ defmodule ServiceHub.Repo.Migrations.RefactorTelegramToConnectionModel do
     alter table(:notification_channels) do
       add :telegram_account_id,
           references(:notification_telegram_accounts, on_delete: :nilify_all)
+
       add :telegram_destination_id,
           references(:notification_telegram_destinations, on_delete: :nilify_all)
     end

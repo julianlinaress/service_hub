@@ -50,8 +50,7 @@ defmodule ServiceHubWeb.NotificationLive.FormComponent do
               <div>
                 <p>You have no active Telegram connection.</p>
                 <p class="text-sm mt-1">
-                  Go to
-                  <.link navigate={~p"/users/settings"} class="link">Account Settings</.link>
+                  Go to <.link navigate={~p"/users/settings"} class="link">Account Settings</.link>
                   to connect Telegram before creating this channel.
                 </p>
               </div>

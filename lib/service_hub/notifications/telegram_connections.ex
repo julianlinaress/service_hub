@@ -19,7 +19,9 @@ defmodule ServiceHub.Notifications.TelegramConnections do
       |> Enum.map_join("\n", fn {k, v} -> "#{k}=#{v}" end)
 
     secret_key = :crypto.hash(:sha256, bot_token)
-    expected = :crypto.mac(:hmac, :sha256, secret_key, check_string) |> Base.encode16(case: :lower)
+
+    expected =
+      :crypto.mac(:hmac, :sha256, secret_key, check_string) |> Base.encode16(case: :lower)
 
     if Plug.Crypto.secure_compare(expected, hash || "") do
       {:ok, data}
