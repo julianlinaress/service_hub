@@ -15,7 +15,15 @@ defmodule ServiceHubWeb.Layouts.Sidebar do
       <div class="bg-base-200 min-h-screen w-64 flex flex-col">
         <div class="p-4 border-b border-base-300">
           <.link navigate="/" class="flex items-center gap-2 text-xl font-bold">
-            <.icon name="hero-server" class="w-6 h-6" />
+          <svg class="size-8" viewBox="112 96 288 320" xmlns="http://www.w3.org/2000/svg">
+            <path d="M256 96L400 176V336L256 416L112 336V176Z" fill="#2563EB"/>
+            <path d="M256 140L360 200V312L256 372L152 312V200Z" fill="#3B82F6"/>
+            <path d="M152 312L256 372L360 312L400 336L256 416L112 336L152 312Z" fill="#1D4ED8"/>
+            <path d="M256 184L320 222L256 258L192 222Z" fill="#0F172A"/>
+            <path d="M192 222L256 258V294L192 258Z" fill="#1E3A8A"/>
+            <path d="M320 222L256 258V294L320 258Z" fill="#1D4ED8"/>
+            <path d="M192 258L256 294L320 258L256 272Z" fill="#2563EB"/>
+          </svg>
             <span>Service Hub</span>
           </.link>
         </div>
