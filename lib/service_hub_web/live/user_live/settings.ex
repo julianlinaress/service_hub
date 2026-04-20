@@ -6,6 +6,7 @@ defmodule ServiceHubWeb.UserLive.Settings do
   alias ServiceHub.AccountConnections
   alias ServiceHub.Accounts
   alias ServiceHub.Notifications
+  alias ServiceHub.Notifications.NotifierClient
 
   @impl true
   def render(assigns) do
@@ -258,8 +259,43 @@ defmodule ServiceHubWeb.UserLive.Settings do
       nil ->
         {:noreply, put_flash(socket, :error, "No Telegram connection found.")}
 
-      _connection ->
-        {:noreply, put_flash(socket, :info, "Test message sent to your Telegram.")}
+      connection ->
+        bot_token = Application.get_env(:service_hub, :telegram_bot_token, "")
+
+        request = %{
+          "delivery_attempt_key" => "settings-test-#{connection.user_id}",
+          "provider" => "telegram",
+          "destination" => %{
+            "token" => bot_token,
+            "chat_ref" => connection.telegram_id,
+            "parse_mode" => "HTML"
+          },
+          "notification" => %{
+            "event_name" => "health.info",
+            "check_type" => "test",
+            "severity" => "info",
+            "message" => "Test notification from ServiceHub",
+            "service_id" => 0,
+            "deployment_id" => 0,
+            "metadata" => %{"status" => "test"}
+          },
+          "event" => %{
+            "id" => Ecto.UUID.generate(),
+            "name" => "health.info",
+            "tags" => %{"source" => "manual"}
+          }
+        }
+
+        case NotifierClient.deliver(request) do
+          {:ok, _} ->
+            {:noreply, put_flash(socket, :info, "Test message sent to your Telegram.")}
+
+          {:error, %{error_message: msg}} ->
+            {:noreply, put_flash(socket, :error, "Delivery failed: #{msg}")}
+
+          {:error, reason} ->
+            {:noreply, put_flash(socket, :error, "Delivery failed: #{inspect(reason)}")}
+        end
     end
   end
 
