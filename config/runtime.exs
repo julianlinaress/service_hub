@@ -41,7 +41,9 @@ config :service_hub, ServiceHubWeb.Endpoint,
 config :service_hub,
   notifier_base_url: System.get_env("NOTIFIER_BASE_URL", "http://localhost:8081"),
   notifier_timeout_ms: String.to_integer(System.get_env("NOTIFIER_TIMEOUT_MS", "5000")),
-  notifier_internal_service_token: System.get_env("NOTIFIER_INTERNAL_SERVICE_TOKEN", "")
+  notifier_internal_service_token: System.get_env("NOTIFIER_INTERNAL_SERVICE_TOKEN", ""),
+  telegram_bot_token: System.get_env("TELEGRAM_BOT_TOKEN", ""),
+  telegram_bot_username: System.get_env("TELEGRAM_BOT_USERNAME", "")
 
 if config_env() == :prod do
   config :service_hub,
