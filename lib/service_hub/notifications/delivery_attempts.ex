@@ -5,8 +5,7 @@ defmodule ServiceHub.Notifications.DeliveryAttempts do
 
   alias ServiceHub.Notifications.DeliveryAttempt
   alias ServiceHub.Notifications.NotificationChannel
-  alias ServiceHub.Notifications.TelegramAccount
-  alias ServiceHub.Notifications.TelegramDestination
+  alias ServiceHub.Notifications.TelegramConnections
   alias ServiceHub.Repo
 
   @spec upsert_pending_attempt(String.t() | nil, NotificationChannel.t(), map()) ::
@@ -129,59 +128,39 @@ defmodule ServiceHub.Notifications.DeliveryAttempts do
       "channel_name" => channel.name,
       "provider" => channel.provider,
       "config" => channel.config || %{},
-      "telegram_account_id" => channel.telegram_account_id,
-      "telegram_destination_id" => channel.telegram_destination_id,
       "resolved_destination" => resolve_destination(channel)
     }
   end
 
   defp resolve_destination(%NotificationChannel{provider: "telegram"} = channel) do
-    config = channel.config || %{}
+    bot_token = Application.get_env(:service_hub, :telegram_bot_token, "")
 
-    token =
-      case channel.telegram_account do
-        %TelegramAccount{bot_token: bot_token} -> bot_token
-        _ -> config["token"]
-      end
+    case TelegramConnections.get_connection_by_user_id(channel.user_id) do
+      nil ->
+        %{"error_code" => "telegram_not_connected"}
 
-    {chat_ref, thread_id} =
-      case channel.telegram_destination do
-        %TelegramDestination{chat_ref: destination_chat_ref, message_thread_id: message_thread_id} ->
-          {destination_chat_ref, message_thread_id}
+      connection ->
+        config = channel.config || %{}
 
-        _ ->
-          {config["chat_ref"] || config["chat_id"], nil}
-      end
-
-    base = %{
-      "token" => token,
-      "chat_ref" => chat_ref,
-      "parse_mode" => config["parse_mode"] || "HTML"
-    }
-
-    if is_nil(thread_id) do
-      base
-    else
-      Map.put(base, "thread_id", thread_id)
+        %{
+          "token" => bot_token,
+          "chat_ref" => connection.telegram_id,
+          "parse_mode" => config["parse_mode"] || "HTML"
+        }
     end
   end
 
   defp resolve_destination(%NotificationChannel{provider: "slack"} = channel) do
-    %{
-      "webhook_url" => channel.config["webhook_url"]
-    }
+    %{"webhook_url" => channel.config["webhook_url"]}
   end
 
   defp resolve_destination(_channel), do: %{}
 
   defp extract_destination_ref(%NotificationChannel{provider: "telegram"} = channel) do
-    destination_chat_ref =
-      case channel.telegram_destination do
-        %{chat_ref: chat_ref} -> chat_ref
-        _ -> nil
-      end
-
-    destination_chat_ref || channel.config["chat_ref"] || channel.config["chat_id"]
+    case TelegramConnections.get_connection_by_user_id(channel.user_id) do
+      nil -> nil
+      connection -> connection.telegram_id
+    end
   end
 
   defp extract_destination_ref(%NotificationChannel{provider: "slack"} = channel) do
@@ -217,7 +196,5 @@ defmodule ServiceHub.Notifications.DeliveryAttempts do
   defp normalize_response(response) when is_map(response), do: response
   defp normalize_response(_), do: %{}
 
-  defp preload_delivery_relations(%NotificationChannel{} = channel) do
-    Repo.preload(channel, [:telegram_account, :telegram_destination])
-  end
+  defp preload_delivery_relations(%NotificationChannel{} = channel), do: channel
 end
