@@ -35,7 +35,7 @@ if config_env() in [:dev, :test] do
     github_oauth_base_url: System.get_env("GITHUB_OAUTH_BASE_URL", "https://api.github.com")
 
   endpoint_host = System.get_env("ENDPOINT_HOST", "localhost")
-  port = System.get_env("PORT", "9020") |> String.to_integer()
+  port = System.get_env("PORT", "9020")
   endpoint_port = System.get_env("ENDPOINT_PORT", port) |> String.to_integer()
   endpoint_scheme = System.get_env("ENDPOINT_SCHEME", "https")
 
