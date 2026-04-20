@@ -33,6 +33,19 @@ if config_env() in [:dev, :test] do
     github_oauth_client_id: System.get_env("GITHUB_OAUTH_CLIENT_ID"),
     github_oauth_client_secret: System.get_env("GITHUB_OAUTH_CLIENT_SECRET"),
     github_oauth_base_url: System.get_env("GITHUB_OAUTH_BASE_URL", "https://api.github.com")
+
+  endpoint_host = System.get_env("ENDPOINT_HOST", "localhost")
+  port = System.get_env("PORT", "9020") |> String.to_integer()
+  endpoint_port = System.get_env("ENDPOINT_PORT", port) |> String.to_integer()
+  endpoint_scheme = System.get_env("ENDPOINT_SCHEME", "https")
+
+  config :service_hub, ServiceHubWeb.Endpoint,
+    url: [host: endpoint_host, port: endpoint_port, scheme: endpoint_scheme],
+    http: [
+      port: port,
+      ip: {0, 0, 0, 0}
+    ],
+    check_origin: false
 end
 
 config :service_hub, ServiceHubWeb.Endpoint,
@@ -87,17 +100,22 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  endpoint_host = System.get_env("ENDPOINT_HOST") || raise """
+      environment variable ENDPOINT_HOST is missing.
+      """
+  endpoint_port = System.get_env("ENDPOINT_PORT") || raise """
+      environment variable ENDPOINT_PORT is missing.
+      """
+
+  endpoint_scheme = System.get_env("ENDPOINT_SCHEME", "https")
+
 
   config :service_hub, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :service_hub, ServiceHubWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: endpoint_host, port: String.to_integer(endpoint_port), scheme: endpoint_scheme],
     http: [
-      # Enable IPv6 and bind on all interfaces.
-      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
-      # See the documentation on https://hexdocs.pm/bandit/Bandit.html#t:options/0
-      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
+      port: String.to_integer(System.get_env("PORT", "9020")),
       ip: {0, 0, 0, 0}
     ],
     check_origin: false,
